@@ -11,7 +11,7 @@
 ; Up = Pitch Up
 ; Down = Pitch Down
 ; TAB = Engine Boost
-; Lua Script: "Auto Drop Safe" enabled for auto dropping at end
+; Lua Script: "Auto Drop Safe" enabled for auto dropping at end (also turn of "show on print" in ce)
 ; Lua Script: "Compass" and "Navi" enabled
 
 F8::
@@ -26,9 +26,11 @@ F8::
   return
 
 F9::
-  InputBox, iterations, Num of iterations, Enter iterations
-  InputBox, dropatend, Drop at end?, 1 for yes | 0 for no
+  InputBox, iterations, Number of required jumps, Enter the number of required "J" actions (also for dropping)
+  InputBox, dropatend, Drop at end?, If you your destination is a station or similar enter 1, else 0
   iterationIndex := iterations
+
+  sleep 2000
 
   loop %iterations% {
     SendInput {x Down}

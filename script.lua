@@ -979,6 +979,7 @@ end
 -- descr: Description, which will be shown in the table
 -- sig: Pattern for the AOB scan, if needed, else nil
 -- patch: Name of function for patching
+-- hook: Pattern for the AOB scan, resulting address will be hooked
 -- func: Special case breakpoints
 -- parent: If defined, entry will be appended to the defined entry and can't be activated without the parent entry
 -- hotkey: Hotkey(s) to toggle the cheat (For default config, look at the top)
@@ -1582,7 +1583,7 @@ function navi(toggle)
     end
 
     naviTimer = createTimer()
-    timer_setInterval(naviTimer, 100)
+    timer_setInterval(naviTimer, 50)
     timer_onTimer(naviTimer, updateNavi)
 
   else
@@ -1605,9 +1606,7 @@ function script.onBreakpoint()
   -- Unfreeze pending entries
   ----------------------------------------------------------------------------------------------
   if (pendingDeletion == true) then
-    for n = 1, #list do
-      local k = list[n]
-
+    for k in ordered(ctable) do
       if (ctable[k].toUnfreeze == true) then
         memoryrecord_unfreeze(ctable[k].te)
         memoryrecord_setDescription(ctable[k].te, ctable[k].oldDescr)
