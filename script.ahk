@@ -40,40 +40,52 @@ F9::
     {
     	FileReadLine, flz, navi.txt, 3
     	if (flz < 1.05) and (flz > 0.95)
-    		break
+      {
+        break
+      }
 
     	Loop
     	{
     		FileReadLine, flx, navi.txt, 1
     		if (flx < 0.05) and (flx > -0.05)
-    		  break
-            if flx > 0
-            {
+        {
+          break
+        }
+
+        if (flx > 0)
+        {
     		  SendInput {Right Down}
     		  sleep 500
     		  SendInput {Right Up}
-            } else {
+        }
+        else
+        {
     		  SendInput {Left Down}
     		  sleep 500
     		  SendInput {Left Up}
-            }
+        }
     	}
 
     	Loop
     	{
     		FileReadLine, fly, navi.txt, 2
     		if (fly < 0.05) and (fly > -0.05)
-    		  break
-            if fly > 0
-            {
+        {
+          break
+        }
+
+        if (fly > 0)
+        {
     		  SendInput {Up Down}
     		  sleep 50
     		  SendInput {Up Up}
-            } else {
+        }
+        else
+        {
     		  SendInput {Down Down}
     		  sleep 50
     		  SendInput {Down Up}
-            }
+        }
     	}
     }
 
@@ -112,7 +124,9 @@ F9::
       sleep 100
       SendInput {x Up}
       sleep 100
-    } else {
+    }
+    else
+    {
       SendInput {c Down}
       sleep 100
       SendInput {c Up}
@@ -128,7 +142,8 @@ F9::
       	FileReadLine, flz, navi.txt, 3
       	if (flz < 1.03) and (flz > 0.97)
       	{
-
+          ; do nothing
+          ; maybe sleep 50
       	}
         else
         {
@@ -177,7 +192,6 @@ F9::
         }
       }
     }
-
     iterationIndex -= 1
   }
   return
