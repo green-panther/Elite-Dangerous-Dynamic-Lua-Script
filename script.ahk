@@ -14,6 +14,9 @@
 ; Lua Script: "Auto Drop Safe" enabled for auto dropping at end (also turn of "show on print" in ce)
 ; Lua Script: "Compass" and "Navi" enabled
 
+EnvGet userhomedir, USERPROFILE
+SetWorkingDir, %userhomedir%\Documents\EliteOut\
+
 F8::
   breakloop := 1
   SendInput {x Down}
@@ -27,7 +30,7 @@ F8::
 
 F9::
   InputBox, iterations, Number of required jumps, Enter the number of required "J" actions (also for dropping)
-  InputBox, dropatend, Drop at end?, If you your destination is a station or similar enter 1, else 0
+  InputBox, dropatend, Drop at end?, If your destination is a station or similar enter 1, else 0
   iterationIndex := iterations
 
   sleep 2000
@@ -41,7 +44,7 @@ F9::
     Loop
     {
     	FileReadLine, flz, navi.txt, 3
-    	if (flz < 1.05) and (flz > 0.95)
+    	if (flz < 1.03) and (flz > 0.97)
       {
         break
       }
@@ -57,13 +60,13 @@ F9::
         if (flx > 0)
         {
     		  SendInput {Right Down}
-    		  sleep 500
+    		  sleep 50
     		  SendInput {Right Up}
         }
         else
         {
     		  SendInput {Left Down}
-    		  sleep 500
+    		  sleep 50
     		  SendInput {Left Up}
         }
     	}
@@ -152,7 +155,7 @@ F9::
         	Loop
         	{
         		FileReadLine, flx, navi.txt, 1
-        		if (flx < 0.03) and (flx > -0.03)
+        		if (flx < 0.05) and (flx > -0.05)
             {
               break
             }
@@ -160,13 +163,13 @@ F9::
             if (flx > 0)
             {
               SendInput {Right Down}
-        		  sleep 100
+        		  sleep 50
         		  SendInput {Right Up}
             }
             else
             {
               SendInput {Left Down}
-              sleep 100
+              sleep 50
               SendInput {Left Up}
             }
           }
@@ -174,7 +177,7 @@ F9::
         	Loop
         	{
         		FileReadLine, fly, navi.txt, 2
-        		if (fly < 0.03) and (fly > -0.03)
+        		if (fly < 0.05) and (fly > -0.05)
             {
               break
             }

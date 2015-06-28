@@ -1569,17 +1569,12 @@ end
 
 function navi(toggle)
   if (toggle == true) then
-    navifilename = eliteoutdir .. "navi.txt"
+    local navifilename = eliteoutdir .. "navi.txt"
 
-    function updateNavi(timer)
-      if (getOpenedProcessID() == script.edPID) then
-        local f = assert(io.open(navifilename, "w+"))
-        f:write(string.format("%f\n%f\n%f", tostring(readFloat(flx)), tostring(readFloat(fly)), tostring(readFloat(flz))))
-        f:close()
-
-      else
-        object_destroy(timer)
-      end
+    function updateNavi()
+      local f = assert(io.open(navifilename, "w+"))
+      f:write(string.format("%f\n%f\n%f", readFloat(flx), readFloat(fly), readFloat(flz)))
+      f:close()
     end
 
     naviTimer = createTimer()
