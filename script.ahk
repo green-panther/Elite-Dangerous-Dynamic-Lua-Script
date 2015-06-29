@@ -1,11 +1,18 @@
+#NoEnv
+#Persistent
+#Warn
+
+#SingleInstance force
+EnvGet userhomedir, USERPROFILE
+SetWorkingDir, %userhomedir%\Documents\EliteOut\
+
 ; Credits: Mostly kabachi, Randshot
-; Script must be safed as .ahk file in the EliteOut directory in your documents folder
 ; Needed Key Bindings:
 ; x = Speed 0%
 ; c = Speed 75%
 ; v = Speed 100%
 ; j = Enable Frame Shift Drive
-; F8/F9 unbound
+; F8/F9/F10/F11 unbound
 ; Left = Yaw Left
 ; Right = Yaw Right
 ; Up = Pitch Up
@@ -13,11 +20,27 @@
 ; TAB = Engine Boost
 ; Lua Script: "Auto Drop Safe" enabled for auto dropping at end (also turn of "show on print" in ce)
 ; Lua Script: "Compass" and "Navi" enabled
+F10::
+{
+  toggle := !toggle
+  if (toggle)
+  {
+    pause
+  }
+  else
+  {
+    unpause
+  }
+  return
+}
 
-EnvGet userhomedir, USERPROFILE
-SetWorkingDir, %userhomedir%\Documents\EliteOut\
+F11::
+{
+  reload
+}
 
 F8::
+{
   breakloop := 1
   SendInput {x Down}
   sleep 100
@@ -27,10 +50,17 @@ F8::
   sleep 100
   SendInput {j Up}
   return
+}
 
 F9::
-  InputBox, iterations, Number of required jumps, Enter the number of required "J" actions (also for dropping)
-  InputBox, dropatend, Drop at end?, If your destination is a station or similar enter 1, else 0
+{
+  InputBox, iterations, Number of required jumps, Enter the number of Jumps (left side panel + 1).
+  InputBox, dropatend, Drop at end?, If your destination is a station or similar enter 1, else 0.
+
+  if (dropatend = 1)
+  {
+    iterations += 1
+  }
   iterationIndex := iterations
 
   sleep 2000
@@ -200,3 +230,4 @@ F9::
     iterationIndex -= 1
   }
   return
+}
