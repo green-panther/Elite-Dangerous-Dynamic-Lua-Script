@@ -1,10 +1,13 @@
 #NoEnv
 #Persistent
-#Warn
+;#Warn
 
 #SingleInstance force
 EnvGet userhomedir, USERPROFILE
 SetWorkingDir, %userhomedir%\Documents\EliteOut\
+flx := 0
+fly := 0
+flz := 1
 
 ; Credits: Mostly kabachi, Randshot
 ; Needed Key Bindings:
@@ -12,7 +15,7 @@ SetWorkingDir, %userhomedir%\Documents\EliteOut\
 ; c = Speed 75%
 ; v = Speed 100%
 ; j = Enable Frame Shift Drive
-; F8/F9/F10/F11 unbound
+; F8/F9/F10 unbound
 ; Left = Yaw Left
 ; Right = Yaw Right
 ; Up = Pitch Up
@@ -20,23 +23,10 @@ SetWorkingDir, %userhomedir%\Documents\EliteOut\
 ; TAB = Engine Boost
 ; Lua Script: "Auto Drop Safe" enabled for auto dropping at end (also turn of "show on print" in ce)
 ; Lua Script: "Compass" and "Navi" enabled
+
 F10::
 {
-  toggle := !toggle
-  if (toggle)
-  {
-    pause
-  }
-  else
-  {
-    unpause
-  }
-  return
-}
-
-F11::
-{
-  reload
+  pause
 }
 
 F8::
@@ -90,13 +80,13 @@ F9::
         if (flx > 0)
         {
     		  SendInput {Right Down}
-    		  sleep 50
+    		  sleep 20
     		  SendInput {Right Up}
         }
         else
         {
     		  SendInput {Left Down}
-    		  sleep 50
+    		  sleep 20
     		  SendInput {Left Up}
         }
     	}
@@ -112,13 +102,13 @@ F9::
         if (fly > 0)
         {
     		  SendInput {Up Down}
-    		  sleep 50
+    		  sleep 20
     		  SendInput {Up Up}
         }
         else
         {
     		  SendInput {Down Down}
-    		  sleep 50
+    		  sleep 20
     		  SendInput {Down Up}
         }
     	}
@@ -178,7 +168,7 @@ F9::
       	if (flz < 1.03) and (flz > 0.97)
       	{
           ; do nothing
-          ; maybe sleep 50
+          ; maybe sleep 20
       	}
         else
         {
@@ -193,13 +183,13 @@ F9::
             if (flx > 0)
             {
               SendInput {Right Down}
-        		  sleep 50
+        		  sleep 20
         		  SendInput {Right Up}
             }
             else
             {
               SendInput {Left Down}
-              sleep 50
+              sleep 20
               SendInput {Left Up}
             }
           }
@@ -214,13 +204,13 @@ F9::
             if (fly > 0)
             {
         		  SendInput {Up Down}
-        		  sleep 50
+        		  sleep 20
         		  SendInput {Up Up}
             }
             else
             {
         		  SendInput {Down Down}
-        		  sleep 50
+        		  sleep 20
         		  SendInput {Down Up}
             }
         	}

@@ -238,7 +238,6 @@ if (name == "mdManualD") then
     save_marketdata()
 
     local txt = ctable[name].descr .. " (pending deletion)"
-    -- Will be unfrozen at next breakpoint hit
     ctable[name].toUnfreeze = true
     ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
     memoryrecord_setDescription(ctable[name].te, txt)
@@ -246,7 +245,6 @@ if (name == "mdManualD") then
     pendingDeletion = true
 
   elseif (ctable[name].toUnfreeze == true) then
-    --memoryrecord_unfreeze(ctable[name].te)
     memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
     ctable[name].toUnfreeze = false
     state = false
@@ -300,7 +298,6 @@ if (ctable[name].addr ~= 1) then
           -- If the user pressed "No", the entry will be unfrozen
           else
             local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
-            -- Will be unfrozen at next breakpoint hit
             ctable[name].toUnfreeze = true
             ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
             pendingDeletion = true
@@ -326,7 +323,6 @@ if (ctable[name].addr ~= 1) then
       -- If the user pressed "No", the entry will be unfrozen
       else
         local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
-        -- Will be unfrozen at next breakpoint hit
         ctable[name].toUnfreeze = true
         ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
         pendingDeletion = true
@@ -357,7 +353,6 @@ if (ctable[name].addr ~= 1) then
 
     -- Unfreezing of entry
     else
-      --memoryrecord_unfreeze(ctable[name].te)
       memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
       ctable[name].toUnfreeze = false
       pendingDeletion = false
@@ -419,7 +414,6 @@ if ((state == true) and (ctable[name].on == false)) then
     -- If the user pressed "No", the entry will be unfrozen
     else
       local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
-  --  Will be unfrozen at next breakpoint hit
       ctable[name].toUnfreeze = true
       ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
       pendingDeletion = true
@@ -436,7 +430,6 @@ else
     printDual(string.format("\n--> (OFF|PATCH) %s\n", ctable[name].descr))
 
   else
-    --memoryrecord_unfreeze(ctable[name].te)
     memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
     ctable[name].toUnfreeze = false
     pendingDeletion = false
@@ -468,7 +461,6 @@ function toggleHook(name, state)
         -- If the user pressed "No", the entry will be unfrozen
       else
         local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
-        -- Will be unfrozen at next breakpoint hit
         ctable[name].toUnfreeze = true
         ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
         pendingDeletion = true
@@ -485,7 +477,50 @@ function toggleHook(name, state)
       printDual(string.format("\n--> (OFF|HOOK) %s\n", ctable[name].descr))
 
     else
-      --memoryrecord_unfreeze(ctable[name].te)
+      memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
+      ctable[name].toUnfreeze = false
+      pendingDeletion = false
+    end
+  end
+
+  -- Setting the state of the entry
+  ctable[name].on = state
+
+  -- Playing beep sound
+  beep()
+end
+
+----------------------------------------------------------------------------------------------
+-- Toggle Hook function
+----------------------------------------------------------------------------------------------
+function toggleEntry (name, state)
+  if ((state == true) and (ctable[name].on == false)) then
+    settings.Value[name] = 1
+    if ((ctable['noWarning'].on == true) or (ctable[name].safe == true)) then
+      printDual(string.format("\n--> (ON|ENTRY) %s\n", ctable[name].descr))
+
+    elseif (ctable[name].safe == false) then
+      if (messageDialog("This cheat is unsafe! Do you want to activate it anyway?", 0, 0, 1) == mrYes) then
+        printDual(string.format("\n--> (ON|ENTRY) %s\n", ctable[name].descr))
+
+      -- If the user pressed "No", the entry will be unfrozen
+      else
+        local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
+        ctable[name].toUnfreeze = true
+        ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
+        pendingDeletion = true
+        memoryrecord_setDescription(ctable[name].te, txt)
+        state = false
+        settings.Value[name] = 0
+      end
+    end
+
+  else
+    settings.Value[name] = 0
+    if (ctable[name].toUnfreeze == false) then
+      printDual(string.format("\n--> (OFF|ENTRY) %s\n", ctable[name].descr))
+
+    else
       memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
       ctable[name].toUnfreeze = false
       pendingDeletion = false
@@ -956,21 +991,21 @@ nonRepHotkeysList = {}
 function createNonRepHotkey(func, ...)
 
   local changedBehaviour =
-  function(sender)
-  local ID = userDataToInteger(sender)
-  local TC = getTickCount()
-  local elapTicks = TC - nonRepHotkeysList[ID]
+    function(sender)
+      local ID = userDataToInteger(sender)
+      local TC = getTickCount()
+      local elapTicks = TC - nonRepHotkeysList[ID]
 
-  if (elapTicks > 300) then func(sender) end
+      if (elapTicks > 300) then func(sender) end
 
-  nonRepHotkeysList[ID] = TC
-end
+      nonRepHotkeysList[ID] = TC
+    end
 
-local hk = createHotkey(changedBehaviour, ...)
-hk.DelayBetweenActivate = 10
-nonRepHotkeysList[userDataToInteger(hk)] = getTickCount()
+  local hk = createHotkey(changedBehaviour, ...)
+  hk.DelayBetweenActivate = 10
+  nonRepHotkeysList[userDataToInteger(hk)] = getTickCount()
 
-return hk
+  return hk
 end
 
 ----------------------------------------------------------------------------------------------
@@ -1396,10 +1431,16 @@ function script.main()
             printDBG("Hook Toggle created: " .. k)
             memoryrecord_setScript(ctable[k].te, scriptdata)
 
-          else
+          elseif (ctable[k].addr ~= 1) then
             local sfunc = "LuaCall(toggleBreakpoint('" .. k .. "'"
             local scriptdata = "[enable]\n" .. sfunc .. ",true))\n[disable]\n" .. sfunc .. ",false))"
             printDBG("Breakpoint Toggle created: " .. k)
+            memoryrecord_setScript(ctable[k].te, scriptdata)
+
+          else
+            local sfunc = "LuaCall(toggleEntry('" .. k .. "'"
+            local scriptdata = "[enable]\n" .. sfunc .. ",true))\n[disable]\n" .. sfunc .. ",false))"
+            printDBG("Entry Toggle created: " .. k)
             memoryrecord_setScript(ctable[k].te, scriptdata)
           end
         end
@@ -1411,14 +1452,14 @@ function script.main()
       -- If (a) hotkey(s) was/were defined, it/they will be created here
       if (ctable[k].hotkey ~= nil) then
         local func =
-        function()
-          if (ctable[k].on == false) then
-            toggle(k, true)
+          function()
+            if (ctable[k].on == false) then
+              toggle(k, true)
 
-          else
-            toggle(k, false)
+            else
+              toggle(k, false)
+            end
           end
-        end
 
         local hotkey = ctable[k].hotkey
         ctable[k].he = createNonRepHotkey(func, hotkey)
@@ -1561,30 +1602,47 @@ function script.main()
       end
     end
 
+    local func =
+      function()
+        if (pendingDeletion == true) then
+          for k in ordered(ctable) do
+            if (ctable[k].toUnfreeze == true) then
+              memoryrecord_unfreeze(ctable[k].te)
+            end
+          end
+
+          pendingDeletion = false
+          printDBG("Pending Deletions done!")
+        end
+      end
+
+    pdTimer = createTimer()
+    timer_setInterval(pdTimer, 5000)
+    timer_onTimer(pdTimer, func)
+
     printDual("-------------------------")
     printDual("Done!")
     printDual("-------------------------\n")
   end
 end
 
-function navi(toggle)
-  if (toggle == true) then
-    local navifilename = eliteoutdir .. "navi.txt"
+function navi(thread)
+  thread.name = 'Navi Thread'
+  local navifilename = eliteoutdir .. "navi.txt"
 
-    function updateNavi()
+  while true do
+    if (naviToggle) then
       local f = assert(io.open(navifilename, "w+"))
       f:write(string.format("%f\n%f\n%f", readFloat(flx), readFloat(fly), readFloat(flz)))
       f:close()
+    else
+      sleep(1000)
     end
-
-    naviTimer = createTimer()
-    timer_setInterval(naviTimer, 50)
-    timer_onTimer(naviTimer, updateNavi)
-
-  else
-    object_destroy(naviTimer)
   end
 end
+
+-- Create Thread for navigation
+createNativeThread(navi)
 
 ----------------------------------------------------------------------------------------------
 -- Main Script End
@@ -1595,23 +1653,6 @@ end
 ----------------------------------------------------------------------------------------------
 function script.onBreakpoint()
   debugProcess()
-
-
-  ----------------------------------------------------------------------------------------------
-  -- Unfreeze pending entries
-  ----------------------------------------------------------------------------------------------
-  if (pendingDeletion == true) then
-    for k in ordered(ctable) do
-      if (ctable[k].toUnfreeze == true) then
-        memoryrecord_unfreeze(ctable[k].te)
-        memoryrecord_setDescription(ctable[k].te, ctable[k].oldDescr)
-        ctable[k].toUnfreeze = false
-        pendingDeletion = false
-      end
-    end
-
-    printDBG("Pending Deletions done!")
-  end
 
   ----------------------------------------------------------------------------------------------
   -- LogOffSky --> kills ED before death flag is being sent
