@@ -1,4 +1,4 @@
 return function()
   gameVersion = "1.3.06"
-  scriptVersion = "1.1.18"
+  scriptVersion = "2.0.0"
 end
