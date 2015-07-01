@@ -82,6 +82,7 @@ settings = getSettings('EDScript')
 foundError = false
 pendingDeletion = false
 debugmode = true
+init = true
 
 userdir = os.getenv("USERPROFILE")
 eliteoutdir = userdir .. [[\Documents\EliteOut\]]
@@ -97,13 +98,13 @@ logfilename = logfiledir .. 'debugLog.' .. os.date('%y%m%d%H%M') .. '.log'
 udpfilename = logfiledir .. 'udpLog.' .. os.date('%y%m%d%H%M') .. '.log'
 
 function printDBG(str)
-  if (ctable['debug'].on == true or debugmode == true) then
+  if (debugmode or ctable['debug'].on) then
     safe.execution(writeFile, logfilename, "a+", string.format("[%s] %s", tostring(os.date()), str))
   end
 end
 
 function printDual(str)
-  if (ctable['disableOutput'].on == false) then
+  if (init or not ctable['disableOutput'].on) then
     print(str)
   end
   printDBG(str)
@@ -133,14 +134,13 @@ function httpGet(url, file)
   local cmd = string.format([[powershell -command "& { (New-Object Net.WebClient).DownloadFile('%s', '%s') }"]], url, tmpfile)
   cmd = assert(io.popen(cmd, 'r'))
   local response = cmd:read('*all')
-  local requestGood = response:len() == 0
   cmd:close()
 
-  if (requestGood) then
+  if (response:len() == 0) then
     result = safe.execution(readFile, tmpfile)
-    safe.execution(writeFile, file, "w+", tmpfile)
+    safe.execution(writeFile, file, "w+", result)
     if (exist(tmpfile)) then
-      os.remove(file)
+      os.remove(tmpfile)
     end
     printDual(string.format("Updated file: %s", file))
 
@@ -175,11 +175,12 @@ end
 -- Load data function
 ----------------------------------------------------------------------------------------------
 function loadData(dataname)
-  if (exist(datadir .. dataname)) then
-    local data = safe.execution(loadstring, safe.execution(readFile, datadir .. dataname))()
+  local file = datadir .. dataname
+  if (exist(file)) then
+    local data = safe.execution(loadstring, safe.execution(readFile, file))()
     return data
   else
-    local data = safe.execution(httpGet, gitDataUrl .. dataname, dataname)
+    local data = safe.execution(loadstring, safe.execution(httpGet, gitDataUrl .. dataname, dataname))()
     return data
   end
 end
@@ -201,6 +202,7 @@ ctableData()
 keyIDs = {}
 keysData = loadData("keys.data")
 keysData()
+init = false
 
 ----------------------------------------------------------------------------------------------
 -- Version output
