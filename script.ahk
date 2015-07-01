@@ -1,20 +1,36 @@
+#NoEnv
+#Persistent
+;#Warn
+
+#SingleInstance force
+EnvGet userhomedir, USERPROFILE
+SetWorkingDir, %userhomedir%\Documents\EliteOut\
+flx := 0
+fly := 0
+flz := 1
+
 ; Credits: Mostly kabachi, Randshot
-; Script must be safed as .ahk file in the EliteOut directory in your documents folder
 ; Needed Key Bindings:
 ; x = Speed 0%
 ; c = Speed 75%
 ; v = Speed 100%
 ; j = Enable Frame Shift Drive
-; F8/F9 unbound
+; F8/F9/F10 unbound
 ; Left = Yaw Left
 ; Right = Yaw Right
 ; Up = Pitch Up
 ; Down = Pitch Down
 ; TAB = Engine Boost
-; Lua Script: "Auto Drop Safe" enabled for auto dropping at end
+; Lua Script: "Auto Drop Safe" enabled for auto dropping at end (also turn off "show on print" in ce)
 ; Lua Script: "Compass" and "Navi" enabled
 
+F10::
+{
+  pause
+}
+
 F8::
+{
   breakloop := 1
   SendInput {x Down}
   sleep 100
@@ -24,11 +40,20 @@ F8::
   sleep 100
   SendInput {j Up}
   return
+}
 
 F9::
-  InputBox, iterations, Num of iterations, Enter iterations
-  InputBox, dropatend, Drop at end?, 1 for yes | 0 for no
+{
+  InputBox, iterations, Number of required jumps, Enter the number of Jumps (left side panel + 1).
+  InputBox, dropatend, Drop at end?, If your destination is a station or similar enter 1, else 0.
+
+  if (dropatend = 1)
+  {
+    iterations += 1
+  }
   iterationIndex := iterations
+
+  sleep 2000
 
   loop %iterations% {
     SendInput {x Down}
@@ -39,41 +64,53 @@ F9::
     Loop
     {
     	FileReadLine, flz, navi.txt, 3
-    	if (flz < 1.05) and (flz > 0.95)
-    		break
+    	if (flz < 1.03) and (flz > 0.97)
+      {
+        break
+      }
 
     	Loop
     	{
     		FileReadLine, flx, navi.txt, 1
     		if (flx < 0.05) and (flx > -0.05)
-    		  break
-            if flx > 0
-            {
+        {
+          break
+        }
+
+        if (flx > 0)
+        {
     		  SendInput {Right Down}
-    		  sleep 500
+    		  sleep 20
     		  SendInput {Right Up}
-            } else {
+        }
+        else
+        {
     		  SendInput {Left Down}
-    		  sleep 500
+    		  sleep 20
     		  SendInput {Left Up}
-            }
+        }
     	}
 
     	Loop
     	{
     		FileReadLine, fly, navi.txt, 2
     		if (fly < 0.05) and (fly > -0.05)
-    		  break
-            if fly > 0
-            {
+        {
+          break
+        }
+
+        if (fly > 0)
+        {
     		  SendInput {Up Down}
-    		  sleep 50
+    		  sleep 20
     		  SendInput {Up Up}
-            } else {
+        }
+        else
+        {
     		  SendInput {Down Down}
-    		  sleep 50
+    		  sleep 20
     		  SendInput {Down Up}
-            }
+        }
     	}
     }
 
@@ -112,7 +149,9 @@ F9::
       sleep 100
       SendInput {x Up}
       sleep 100
-    } else {
+    }
+    else
+    {
       SendInput {c Down}
       sleep 100
       SendInput {c Up}
@@ -128,14 +167,15 @@ F9::
       	FileReadLine, flz, navi.txt, 3
       	if (flz < 1.03) and (flz > 0.97)
       	{
-
+          ; do nothing
+          ; maybe sleep 20
       	}
         else
         {
         	Loop
         	{
         		FileReadLine, flx, navi.txt, 1
-        		if (flx < 0.03) and (flx > -0.03)
+        		if (flx < 0.05) and (flx > -0.05)
             {
               break
             }
@@ -143,13 +183,13 @@ F9::
             if (flx > 0)
             {
               SendInput {Right Down}
-        		  sleep 100
+        		  sleep 20
         		  SendInput {Right Up}
             }
             else
             {
               SendInput {Left Down}
-              sleep 100
+              sleep 20
               SendInput {Left Up}
             }
           }
@@ -157,27 +197,27 @@ F9::
         	Loop
         	{
         		FileReadLine, fly, navi.txt, 2
-        		if (fly < 0.03) and (fly > -0.03)
+        		if (fly < 0.05) and (fly > -0.05)
             {
               break
             }
             if (fly > 0)
             {
         		  SendInput {Up Down}
-        		  sleep 50
+        		  sleep 20
         		  SendInput {Up Up}
             }
             else
             {
         		  SendInput {Down Down}
-        		  sleep 50
+        		  sleep 20
         		  SendInput {Down Up}
             }
         	}
         }
       }
     }
-
     iterationIndex -= 1
   }
   return
+}

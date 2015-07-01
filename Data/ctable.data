@@ -1,0 +1,63 @@
+return function()
+  ctable.WinHttpOpen = { descr = "LogOffSky", func = "WINHTTP.WinHttpOpenRequest", hotkey = hLogOffSky, swb = 1 }
+  ctable.compass = { descr = "Compass", hook = "51 53 55 56 57 8D 44 24 10 6A 03", hotkey = nil }
+  ctable.dropSafeCall = { descr = "Auto Drop Safe", sig = "E8 ? ? ? ? 83 C4 04 8B C4 6A 01 50 E8 ? ? ? ? 8B 8F ? ? ? ? 83 C4 08 E8 ? ? ? ? 8B 8F ? ? ? ? 8B 01 FF 90 ? ? ? ? C7 44 24 ? ? ? ? ?", hotkey = nil }
+  ctable.damageCalc = { descr = "Damage", sig = "D8 46 08 D8 46 0C", offs = 18, hotkey = hDamage }
+  ctable.damageBoost = { descr = "Multiply Damage", parent = "damageCalc", hotkey = hDamageBoost }
+  ctable.damageSrc = { descr = "Only You", hook = "55 8B EC 83 E4 F0 81 EC ? ? ? ? 56 8B F1 57 8B 86 ? ? ? ? 8D 8E ? ? ? ?", parent = "damageBoost", hotkey = hDamageSource }
+  ctable.minDamageMul = { descr = "Min Multiplier", customAddr = "minDMul", parent = "damageBoost", hotkey = nil }
+  ctable.maxDamageMul = { descr = "Max Multiplier", customAddr = "maxDMul", parent = "damageBoost", hotkey = nil }
+  ctable.noHullD = { descr = "No Hull Damage", parent = "damageCalc", hotkey = hNoHullD }
+  ctable.someShieldD = { descr = "Some Shield Damage", parent = "damageCalc", hotkey = hSomeShieldD }
+  ctable.curShVal = { descr = "Current Shield Value", customAddr = "curSVal", parent = "someShieldD", hotkey = nil }
+  ctable.maxShVal = { descr = "Max Shield Value", customAddr = "maxSVal", parent = "someShieldD", hotkey = nil }
+  ctable.noShieldD = { descr = "No Shield Damage", parent = "damageCalc", hotkey = hNoShieldD }
+  ctable.noModD = { descr = "No Module Damage", parent = "damageCalc", hotkey = hNoModD }
+  ctable.powerOutput = { descr = "High Power Output", sig = "C7 43 ? ? ? ? ? C7 43 ? ? ? ? ? A1 ? ? ? ? 8D 73 50 8D 4B 04", hotkey = hPowerOutput }
+  ctable.energy = { descr = "Energy", sig = "83 EC 08 8B 44 24 0C 53 56 57", hotkey = nil }
+  ctable.enRedUse = { descr = "Reduced Usage", parent = "energy", hotkey = hEnRedUse }
+  ctable.enNoUse = { descr = "No Usage", parent = "energy", hotkey = hEnNoUse }
+  ctable.thrusterMass = { descr = "Change Thruster Mass", hook = "F3 0F 10 81 ? ? ? ? 8B 44 24 08", hotkey = nil }
+  ctable.thrusterToggle = { descr = "Stop other ships", parent = "thrusterMass", hotkey = nil }
+  ctable.thrusterModifier = { descr = "Modifier", customAddr = "massMod", parent = "thrusterMass", hotkey = nil }
+  ctable.moduleCaller = { descr = nil, sig = "D9 54 24 20 83 BF ? ? ? ? ?", hotkey = nil }
+  ctable.hullCaller = { descr = nil, sig = "D9 5C 24 2C 8B 47 6C", hotkey = nil }
+  ctable.shieldCaller = { descr = nil, sig = "D9 54 24 24 83 BF ? ? ? ? ?", hotkey = nil }
+  ctable.hdCharge = { descr = "No HD Charge", sig = "E8 ? ? ? ? F3 0F 10 44 24 ? F3 0F 11 87 ? ? ? ? E9 ? ? ? ?", hotkey = hHDCharge }
+  ctable.scCharge = { descr = "No SC Charge", sig = "D9 40 14 8D 97 ? ? ? ?", hotkey = hSCCharge }
+  ctable.noCooldown = { descr = "No Cooldown", patch = { "72 50 6A 64", "90 90" }, hotkey = hNoCooldown }
+  ctable.noMasslock = { descr = "No Masslock", sig = "C7 87 ? ? ? ? ? ? ? ? 8B 8F ? ? ? ? C7 87 ? ? ? ? ? ? ? ? 8B 01 8B 40 24", hotkey = hNoMasslock }
+  ctable.hyper = { descr = "HyperJump", sig = "F3 0F 10 4C 24 ? F3 0F 10 40 ? 0F 2F C8", hotkey = nil, safe = false }
+  ctable.hyFuelRange = { descr = "Extended HD Range", parent = "hyper", hotkey = hHyFuelRange, safe = false }
+  ctable.hyMul = { descr = "Fuel Range Multiplier", customAddr = "hyperJumpMul", parent = "hyFuelRange", hotkey = nil }
+  ctable.hyUnlimRange = { descr = "Unlimited HD Range", parent = "hyper", hotkey = hHyUnlimRange, safe = false }
+  ctable.hyFuelUsage = { descr = "Less Fuel Usage", parent = "hyper", hotkey = hHyFuelUsage, safe = false }
+  ctable.hyFuelMul = { descr = "Downscale Factor", customAddr = "hyperFuelMul", parent = "hyFuelUsage", hotkey = nil }
+  ctable.hyFuelInf = { descr = "No Fuel Usage", parent = "hyper", hotkey = hHyFuelInf, safe = false }
+  ctable.xmlParser = { descr = "XML Parser", sig = "56 8B 74 24 08 8B 86 ? ? ? ? 83 E8 02 0F 84 ? ? ? ? 48 0F 84 ? ? ? ? 57", hotkey = nil }
+  ctable.enMine = { descr = "Enh. Mining", parent = "xmlParser", hotkey = hMining, safe = false }
+  ctable.mdCSV = { descr = "CSV", parent = "xmlParser", hotkey = hCSV }
+  ctable.mdBPC = { descr = "BPC", parent = "xmlParser", hotkey = hBPC }
+  ctable.mdTDP = { descr = "TDP", parent = "xmlParser", hotkey = hTDP }
+  ctable.mdFixedD = { descr = "Fixed Dump", parent = "xmlParser", hotkey = hFixedD }
+  ctable.mdAutoD = { descr = "Auto Dump", parent = "xmlParser", hotkey = hAutoD }
+  ctable.mdManualD = { descr = "Manual Dump", parent = "xmlParser", hotkey = hManualD }
+  ctable.writeFile = { descr = nil, func = "KERNEL32.WriteFile", hotkey = nil, swb = 1 }
+  ctable.scoop = { descr = "Instant scooping", patch = { "74 18 6A 00 51 8D 44 24 20 8B CC 50 E8 ?? ?? ?? ?? 8B 46 28", "90 90" }, hotkey = hScoop }
+  ctable.hsTimer = { descr = "Inf. Heatsink Duration", sig = "F3 0F 10 83 ? ? ? ? F3 0F 58 44 24 ? F3 0F 11 83 ? ? ? ?", hotkey = hHeatsink }
+  ctable.fuel = { descr = "Fuel Usage (flight)", sig = "C7 44 24 ? ? ? ? ? C6 43 58 01", hotkey = hFuel, safe = false }
+  ctable.redFuel = { descr = "Reduced Fuel Usage", parent = "fuel", hotkey = hRedFuel, safe = false }
+  ctable.noFuel = { descr = "No Fuel Usage", parent = "fuel", hotkey = hNoFuel, safe = false }
+  ctable.amFrezSs = { descr = "Freeze Ammo", patch = { "2B DE 85 C0 74 07", "90 90" }, hotkey = hAmmo, safe = false }
+  ctable.noWarning = { descr = "No Warning", hotkey = hNoWarning, on = false }
+  ctable.udpStream = { descr = "UPD Stream Logger", sig = "83 EC 20 53 8B D9 55 8B 53 54", force = true }
+  ctable.udpBytes = { descr = "Bytes/s", customAddr = "udpBs", parent = "udpStream", hotkey = nil }
+  ctable.udpPackets = { descr = "Packets/s", customAddr = "udpPs", parent = "udpStream", hotkey = nil }
+  ctable.udpTBytes = { descr = "Total Bytes", customAddr = "udpTBs", parent = "udpStream", hotkey = nil }
+  ctable.udpTPackets = { descr = "Total Packets", customAddr = "udpTPs", parent = "udpStream", hotkey = nil }
+  ctable.debug = { descr = "Debug Mode", hotkey = hDebug, force = true }
+  ctable.disableOutput = { descr = "Disable Console Output", hotkey = hOut, on = false }
+  ctable.numOfBreakpoints = { descr = "H-Breakpoints: ", hotkey = nil }
+  ctable.voucher = { descr = "Voucher Multiplier", hook = "81 EC ? ? ? ? 8B 84 24 ? ? ? ? 53 8B 50 0C", hide = true }
+  ctable.voucherMul = { descr = "Multiplier", customAddr = "vMul", parent = "voucher", hotkey = nil, hide = true }
+end
