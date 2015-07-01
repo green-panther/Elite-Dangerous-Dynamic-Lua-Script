@@ -99,7 +99,7 @@ udpfilename = logfiledir .. 'udpLog.' .. os.date('%y%m%d%H%M') .. '.log'
 
 function printDBG(str)
   if (debugmode or ctable['debug'].on) then
-    safe.execution(writeFile, logfilename, "a+", string.format("[%s] %s", tostring(os.date()), str))
+    safe.execution(writeFile, logfilename, "a+", string.format("[%s] %s\n", tostring(os.date()), str))
   end
 end
 
