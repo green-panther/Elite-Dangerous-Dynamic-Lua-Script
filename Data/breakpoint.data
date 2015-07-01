@@ -1,0 +1,424 @@
+return function()
+  debugProcess()
+
+  ----------------------------------------------------------------------------------------------
+  -- LogOffSky --> kills ED before death flag is being sent
+  ----------------------------------------------------------------------------------------------
+  if ((EIP == ctable['WinHttpOpen'].addr) and (ctable['WinHttpOpen'].on == true)) then
+    local pwszObjectName = readString(readInteger(ESP + 12), 256, true)
+    if ((pwszObjectName ~= nil) and (string.find(pwszObjectName, "elite/commander/death") ~= nil)) then
+      EIP = getAddress("ntdll.RtlExitUserProcess")
+      printDual("\nCMDR death detected! Terminating ED before flag gets sent. Time of death: " .. os.date('%d/%m/%y - %H:%M'))
+    end
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- UDP Stream: Logs the udp stream size to a file
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['udpStream'].addr) then
+    local size = readInteger(ESP + 8)
+    local buffer = readBytes(readAddress(ESP + 4), size, true)
+
+    if (streamTimer == nil) then
+      streamSizePerSecond = 0
+      streamCountPerSecond = 0
+      streamTimer = createTimer()
+      timer_setInterval(streamTimer, 1000)
+      timer_onTimer(streamTimer, function()
+        if (streamSizePerSecond ~= 0) then
+          writeFloat(udpB, streamSizePerSecond)
+          writeFloat(udpP, streamCountPerSecond)
+          printDBG('UDP Stream | ' .. streamSizePerSecond .. ' Byte(s)/s - ' .. streamCountPerSecond .. ' Packet(s)/s')
+
+          streamSizePerSecond = 0
+          streamCountPerSecond = 0
+
+        else
+          writeFloat(udpB, 0)
+          writeFloat(udpP, 0)
+        end
+      end)
+    end
+
+    if (streamSize ~= nil and streamCount ~= nil) then
+      streamSize = streamSize + size
+      streamSizePerSecond = streamSizePerSecond + size
+      streamCount = streamCount + 1
+      streamCountPerSecond = streamCountPerSecond + 1
+
+    else
+      streamSize = size
+      streamCount = 1
+      printStreamStats = function() printDBG(string.format("Total Size: %i Byte(s) | Packet Count: %i Packet(s)", streamSize, streamCount)) end
+    end
+
+    if (streamSizePerSecond > 20000) then
+      printDual('Warning! Your traffic is unusually high. Please report this to Randshot! (' .. streamSizePerSecond .. ' Byte(s)/s - ' .. streamCountPerSecond .. ' Packet(s)/s)')
+      beep()
+    end
+
+    writeFloat(udpTB, streamSize)
+    writeFloat(udpTP, streamCount)
+
+    local fudp = assert(io.open(udpfilename, "a+"))
+    fudp:write('Size: ' .. size .. ' Bytes | Buffer: ' .. string.format('%x', byteTableToDword(buffer)) .. '\n')
+    fudp:close()
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- No Damage to your Hull/Shield/Modules
+    -- Increased Damage against all other ships (no Module Damage)
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['damageCalc'].addr) then
+    -- Local vars
+    local pthis = ECX
+    local caller = readPointer(ESP)
+    local incomingPointer = EDI
+    local damageDoneTo = ""
+
+    -- Set multiplier to 1.0 (normal damage)
+    writeFloat(result, 1.0)
+
+    -- Set damage source to player when, "Only You" is disabled
+    if (ctable['damageSrc'].on == false) then
+      isPlayerDamage = 1
+
+    else
+      isPlayerDamage = readBytes(damageSrcFlag, 1, false)
+    end
+
+    -- When Shield damage is done
+    if (caller == ctable['shieldCaller'].addr) then
+      local shieldModulePtr = pthis - 0xB8
+      local hullRefPtr = shieldModulePtr + 91 * 4
+      local hullPtr = readAddress(hullRefPtr)
+      local npcFlag = isNPC(hullPtr)
+
+      --printDBG(string.format("Shield | shieldModulePtr: 0x%X - hullRefPtr: 0x%X - hullPtr: 0x%X - incomingPtr: 0x%X - caller: 0x%X", shieldModulePtr, hullRefPtr, hullPtr, incomingPointer, caller))
+
+      if (npcFlag == false) then
+        local curShieldValPtr = shieldModulePtr + 920
+        local maxShieldValPtr = shieldModulePtr + 888
+        local xoredCurShieldVal = bXor(readAddress(curShieldValPtr), readAddress(curShieldValPtr + 4)) -- divided it into two lines for readablility
+        local xoredMaxShieldVal = bXor(readAddress(maxShieldValPtr), readAddress(maxShieldValPtr + 4)) -- divided it into two lines for readablility
+        local curShieldVal = hex2float(xoredCurShieldVal)
+        local maxShieldVal = hex2float(xoredMaxShieldVal)
+
+        writeFloat(currentSVal, curShieldVal)
+        writeFloat(maximalSVal, maxShieldVal)
+
+        --printDBG(string.format("Shield Debug | Current Shield Value: %.2f - Max Shield Value %.2f", curShieldVal, maxShieldVal))
+
+        if (ctable['noShieldD'].on == true) then
+          writeFloat(result, 0.0)
+
+        elseif (ctable['someShieldD'].on == true) then
+          if ((curShieldVal > 50.0) and (curShieldVal > maxShieldVal * 0.5)) then
+            writeFloat(result, getRandomFloat(0.2, 0.25))
+
+          elseif ((curShieldVal > 50.0) and (curShieldVal > maxShieldVal * 0.15)) then
+            writeFloat(result, getRandomFloat(0.1, 0.15))
+
+          else
+            writeFloat(result, 0.0)
+          end
+        end
+        damageDoneTo = "Player | Shield"
+
+      elseif ((npcFlag == true) and (ctable['damageBoost'].on == true) and (isPlayerDamage == 1)) then
+        writeFloat(result, getRandomFloat(readFloat(minDamageMultiplier), readFloat(maxDamageMultiplier)))
+        damageDoneTo = "NPC | Shield"
+        --printDBG(string.format("npc: %s - playerd: %s", tostring(npcFlag), tostring(isPlayerDamage)))
+      end
+
+      -- When Hull damage is done
+    elseif (caller == ctable['hullCaller'].addr) then
+      local hullPtr = pthis - 152 + 27 * 4
+      local npcFlag = isNPC(hullPtr)
+
+      --printDBG(string.format("Hull | hullPtr: 0x%X", hullPtr))
+
+      if ((npcFlag == false) and (ctable['noHullD'].on == true)) then
+        writeFloat(result, 0.0)
+        damageDoneTo = "Player | Hull"
+
+      elseif ((npcFlag == true) and (ctable['damageBoost'].on == true) and (isPlayerDamage == 1)) then
+        writeFloat(result, getRandomFloat(readFloat(minDamageMultiplier), readFloat(maxDamageMultiplier)))
+        damageDoneTo = "NPC | Hull"
+      end
+
+      -- When Module damage is done
+    elseif (caller == ctable['moduleCaller'].addr) then
+      local shipObj = readAddress(pthis + 276 - 136)
+      local npcFlag = readBytes(shipObj + 152, 1, false)
+
+      --printDBG(string.format("Module DBG | shipObj: 0x%X - npcFlag %s", shipObj, tostring(npcFlag)))
+
+      if ((npcFlag == 0) and (ctable['noModD'].on == true)) then
+        writeFloat(result, 0.0)
+        damageDoneTo = "Player | Module"
+
+      elseif ((npcFlag == 1) and (ctable['damageBoost'].on == true) and (isPlayerDamage == 1)) then
+        writeFloat(result, getRandomFloat(readFloat(minDamageMultiplier), readFloat(maxDamageMultiplier)))
+        damageDoneTo = "NPC | Module"
+      end
+
+      -- For unknown caller, mostly for debugging purpose
+    else
+      printDBG(string.format("Other Caller! - IncomingPointer: 0x%X - Caller: 0x%X", incomingPointer, caller))
+    end
+
+    -- Debug message
+    if (readFloat(result) == 1.0) then
+      --printDBG("Normal Damage!")
+
+    elseif (readFloat(result) > 1.0) then
+      printDBG(string.format("%s Damage got multiplied by %.1f - Incoming Pointer: 0x%X - Caller: 0x%X", damageDoneTo, readFloat(result), incomingPointer, caller))
+
+    elseif (readFloat(result) < 1.0 and readFloat(result) ~= 0.0) then
+      printDBG(string.format("%s Damage got downscaled by %.1f - Incoming Pointer: 0x%X - Caller: 0x%X", damageDoneTo, 1 / readFloat(result), incomingPointer, caller))
+
+    else
+      printDBG(string.format("%s Damage got nullified! - Incoming Pointer: 0x%X - Caller: 0x%X", damageDoneTo, incomingPointer, caller))
+    end
+
+    -- Set damage source to 1, so the boost will always be applied, except when non player damage is detected
+    isPlayerDamage = 1
+
+    -- Set entry point to multiplier
+    EIP = returnmul
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Automatically drop from SuperCruise (in combination with AHK script)
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['dropSafeCall'].addr) then
+    keyDown(119) -- 119 -> F8
+    keyUp(119)
+
+    printDual("Dropping from SuperCruise!")
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Practically infinte power output
+    -- Change EBX + 0x3C to 10.0
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['powerOutput'].addr) then
+    writeFloat(EBX + 0x3C, 10.0)
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Weapons and co. don't use energy
+    -- Reduced Usage: Downscaled by 8
+    -- No Usage: self explaining
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['energy'].addr) then
+    if (ctable['enRedUse'].on == true) then
+      writeFloat(ESP + 0x8, readFloat(ESP + 0x8) * getRandomFloat(0.1, 0.15))
+
+    elseif (ctable['enNoUse'].on == true) then
+      writeFloat(ESP + 0x8, 0.0)
+    end
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Instant HDrive charge
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['hdCharge'].addr) then
+    local hdTimerAddr = EDI + 0x1E8
+    writeFloat(hdTimerAddr, 0.0)
+    printDBG("HDrive timer set 0.0!")
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Instant SCruise charge
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['scCharge'].addr) then
+    local scTimerAddr = EAX + 0x14
+    local scTimerValue = readFloat(scTimerAddr)
+
+    if (scTimerValue ~= nil) then
+      writeFloat(scTimerAddr, 0.0)
+      printDBG("SCruise timer set 0.0!")
+    end
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- No Masslock
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['noMasslock'].addr) then
+    local massMultiplierAddr = EDI + 0x1DC
+    local massMultiplierVal = readFloat(massMultiplierAddr)
+
+    if (massMultiplierVal == 0.0) then
+      writeFloat(massMultiplierAddr, 1.0)
+    end
+
+    --printDBG("Masslock removed!")
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Get Station
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['writeFile'].addr) then
+    local pszLog = readAddress(ESP + 8)
+    local Len = readAddress(ESP + 0xC)
+    local data = readString(pszLog, 1)
+
+    if (data ~= nil and data == '{') then -- netlog output
+      data = readString(pszLog, Len)
+
+      if (string.match(data, "FindBestIsland:") ~= nil) then
+        -- invalidate old values
+        cur_station = ""
+        cur_star = ""
+
+        -- extract the 3 fields we are interested in and keep it from the last FindBestIsland
+        for mode, station, star in string.gmatch(data, [[FindBestIsland:.*:(.*):(.*):(%C*)]]) do
+          if (star ~= nil and station ~= nil and star ~= cur_star or station ~= cur_station) then
+            printDual("-->Current System: " .. star .. " | Station/Star: " .. station)
+            cur_station = station
+            cur_star = star
+          end
+        end
+      end
+    end
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- XML Parser
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['xmlParser'].addr) then
+    local pszXml = readAddress(ESP + 8)
+    local nXmlLen = readInteger(ESP + 12)
+    local xmldata = readString(pszXml, nXmlLen)
+    local xmlid = xmldata:match("<data><(%w*)>")
+
+    if (xmlid == "inventory") then
+      parse_marketdata(xmldata)
+
+    elseif (ctable['enMine'].on == true) then
+      local changeCount = 0
+      xmldata, changeCount = string.gsub(xmldata, [[</type><level>..</level></item>]], [[</type><level>99</level></item>]])
+      if (changeCount > 0) then
+        writeString(pszXml, xmldata)
+        printDBG("Changed " .. changeCount .. " hopper values to 99!")
+      end
+    end
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Infinite Heatsink Duration
+    -- Not tested!
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['hsTimer'].addr) then
+    local timerElapsedAddr = EBX + 0xC0
+    writeFloat(timerElapsedAddr, 0.0)
+    --printDBG("Heatsink timer set 0.0!")
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Fuel Usage in normal flight
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['fuel'].addr) then
+    if (ctable['redFuel'].on == true) then
+      local fuelUsageAddr = ESP + 0x14
+      local fuelUsageVal = readFloat(fuelUsageAddr)
+      writeFloat(fuelUsageAddr, fuelUsageVal * getRandomFloat(0.2, 0.5)) -- by 50%
+
+    elseif (ctable['noFuel'].on == true) then
+      local fuelUsageAddr = ESP + 0x14
+      writeFloat(fuelUsageAddr, 0.0) -- nullify
+    end
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Hyperspace Jump Hack
+    -- Max fuel consumption will get extended somewhat (Range)
+    -- To traget fuel usage will be nullified (Nullify Fuel Usage)
+    -- To traget fuel usage will be downscaled (Downscale Fuel Usage)
+    -- Note that this is not a cheat for unlimited jump range. The limiting factor is your FSD Drive
+    ----------------------------------------------------------------------------------------------
+  elseif (EIP == ctable['hyper'].addr) then
+    local maxFuelUsageAddr = EAX + 0x20
+    local toTargetFuelUsageAddr = ESP + 0x40 --0x64
+    local desiredFuelAddr = ESP + 0x4C
+
+    local maxFuelUsageVal = readFloat(maxFuelUsageAddr)
+    local toTargetFuelUsageVal = readFloat(toTargetFuelUsageAddr)
+    local desiredFuelVal = readFloat(desiredFuelAddr)
+
+    printDBG(string.format("HyperJump Before | maxFuelUsageVal: %.2f - toTargetFuelUsageVal: %.2f - desiredFuelVal: %.2f", maxFuelUsageVal, toTargetFuelUsageVal, desiredFuelVal))
+
+    if ((maxFuelUsageVal ~= nil) and (toTargetFuelUsageVal ~= nil) and (desiredFuelVal ~= nil)) then
+      -- Nullify Fuel Usage
+      if (ctable['hyFuelInf'].on == true) then
+        writeFloat(toTargetFuelUsageAddr, 0.0)
+        printDBG("Nullified fuel usage for jump!")
+
+        -- Reduce Fuel Usage
+      elseif (ctable['hyFuelUsage'].on == true) then
+        local multiplier = 1 / readFloat(hyperFuelMultiplier)
+        writeFloat(toTargetFuelUsageAddr, toTargetFuelUsageVal * multiplier)
+        printDBG(string.format("Reduced fuel usage by a factor of %.2f!", 1 / multiplier))
+      end
+
+      toTargetFuelUsageVal = readFloat(toTargetFuelUsageAddr)
+
+      -- Max Fuel Usage Check (Range)
+      if (ctable['hyUnlimRange'].on == true) then
+        if (maxFuelUsageVal < toTargetFuelUsageVal) then
+          writeFloat(maxFuelUsageAddr, toTargetFuelUsageVal)
+        end
+
+        printDBG("Unlimited Jump Range!")
+
+      elseif (ctable['hyFuelRange'].on == true) then
+        writeFloat(maxFuelUsageAddr, maxFuelUsageVal * readFloat(hyperJumpMultiplier))
+
+        printDBG("Extended Jump Range!")
+      end
+    end
+
+    maxFuelUsageVal = readFloat(maxFuelUsageAddr)
+    desiredFuelVal = readFloat(desiredFuelAddr)
+
+    printDBG(string.format("HyperJump After | maxFuelUsageVal: %.2f - toTargetFuelUsageVal: %.2f - desiredFuelVal: %.2f", maxFuelUsageVal, toTargetFuelUsageVal, desiredFuelVal))
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+
+    ----------------------------------------------------------------------------------------------
+    -- Catch exceptions
+    ----------------------------------------------------------------------------------------------
+  else
+    printDBG(string.format("Unexpected break at 0x%X! Resuming execution.", EIP))
+
+    debug_continueFromBreakpoint(co_run)
+    return 1
+  end
+end

@@ -1,0 +1,516 @@
+return function()
+
+  ----------------------------------------------------------------------------------------------
+  -- Set onBreakpoint function
+  ----------------------------------------------------------------------------------------------
+  debugger_onBreakpoint = script.onBreakpoint
+
+  ----------------------------------------------------------------------------------------------
+  -- Global Variables
+  -- mindamageMultiplier: Minimal factor the damage gets multiplied with
+  -- maxdamageMultiplier: Maximal factor the damage gets multiplied with
+  -- isPlayerDamage: Defines the source of the damage (don't change this)
+  ----------------------------------------------------------------------------------------------
+  autoAssemble([[
+  alloc(g_multiplier, 4)
+  alloc(minDMul, 4)
+  alloc(maxDMul, 4)
+  alloc(hyperJumpMul, 4)
+  alloc(curSVal, 4)
+  alloc(maxSVal, 4)
+  alloc(udpBs, 4)
+  alloc(udpPs, 4)
+  alloc(udpTPs, 4)
+  alloc(udpTBs, 4)
+  alloc(hyperFuelMul, 4)
+  alloc(dmgSrcFlag, 4)
+  alloc(massToggle, 4)
+  alloc(massMod, 4)
+  alloc(TablePointer, 4)
+  alloc(flx, 4)
+  alloc(fly, 4)
+  alloc(flz, 4)
+  alloc(vMul, 4)
+
+  registersymbol(g_multiplier)
+  registersymbol(minDMul)
+  registersymbol(maxDMul)
+  registersymbol(hyperJumpMul)
+  registersymbol(curSVal)
+  registersymbol(maxSVal)
+  registersymbol(udpBs)
+  registersymbol(udpPs)
+  registersymbol(udpTBs)
+  registersymbol(udpTPs)
+  registersymbol(hyperFuelMul)
+  registersymbol(dmgSrcFlag)
+  registersymbol(massToggle)
+  registersymbol(massMod)
+  registersymbol(TablePointer)
+  registersymbol(flx)
+  registersymbol(fly)
+  registersymbol(flz)
+  registersymbol(vMul)
+  ]])
+
+  result = getAddress("g_multiplier")
+  minDamageMultiplier = getAddress("minDMul")
+  maxDamageMultiplier = getAddress("maxDMul")
+  hyperJumpMultiplier = getAddress("hyperJumpMul")
+  currentSVal = getAddress("curSVal")
+  maximalSVal = getAddress("maxSVal")
+  udpB = getAddress("udpBs")
+  udpP = getAddress("udpPs")
+  udpTB = getAddress("udpTBs")
+  udpTP = getAddress("udpTPs")
+  hyperFuelMultiplier = getAddress("hyperFuelMul")
+  damageSrcFlag = getAddress("dmgSrcFlag")
+  thToggle = getAddress("massToggle")
+  thMod = getAddress("massMod")
+  TablePointerL = getAddress("TablePointer")
+  flx = getAddress("flx")
+  fly = getAddress("fly")
+  flz = getAddress("flz")
+  vMul = getAddress("vMul")
+
+  autoAssemble([[
+  globalalloc(returnmul, 64)
+
+  returnmul:
+  fmul dword ptr [g_multiplier]
+  ret 4
+  ]])
+
+  returnmul = getAddress("returnmul")
+
+  -- Player damage identifier
+  isPlayerDamage = 1
+
+  -- Min and Max Damage Multiplier. Random float will be generated.
+  writeFloat(minDamageMultiplier, 3.0)
+  writeFloat(maxDamageMultiplier, 4.0)
+
+  -- Hyper Jump Fuel Multiplier
+  writeFloat(hyperJumpMultiplier, 3.0)
+
+  -- Hyper Jump Fuel Downscale Factor
+  writeFloat(hyperFuelMultiplier, 10)
+
+  -- Thruster Mass Modifier
+  writeFloat(thMod, 500)
+
+  -- Voucher Multiplier
+  writeInteger(vMul, 10)
+
+  function printTablePointer()
+    printDBG(string.format("TablePointer: %x", readAddress(TablePointerL)))
+  end
+
+  printDBG("Global variables defined.")
+
+  ----------------------------------------------------------------------------------------------
+  -- Find addresses of patterns and build the Cheat Table
+  ----------------------------------------------------------------------------------------------
+  for k in ordered(ctable) do
+    if (ctable[k].hide ~= true) then
+      -- Does an AOB scan when the given pattern isn't nil
+      if (ctable[k].sig ~= nil) then
+        ctable[k].addr = AOBScan2(ctable[k].sig)
+
+        if (ctable[k].offs ~= nil) then
+          ctable[k].addr = ctable[k].addr + ctable[k].offs
+        end
+
+        -- Gets the address for the breakpoint. This is used for breakpoints outside of the game exe
+      elseif (ctable[k].func ~= nil) then
+        ctable[k].addr = getAddress(ctable[k].func)
+
+        -- If neither of the above is given, the address will be set to 1
+
+      elseif (ctable[k].hook ~= nil) then
+        ctable[k].addr = AOBScan2(ctable[k].hook)
+        if (ctable[k].addr ~= nil) then
+          printDual(string.format("%s @ 0x%X", k, ctable[k].addr))
+
+          local size = 0
+          repeat
+            size = size + getInstructionSize(ctable[k].addr + size)
+          until size >= 5
+
+          local bytes = readBytes(ctable[k].addr, size, true)
+          ctable[k].bytes = ""
+          for _, data in pairs(bytes) do
+            local hex = string.format("%x", data)
+            if (hex:len() == 1) then
+              hex = string.format("0%s", hex)
+            end
+            ctable[k].bytes = string.format("%s %s", ctable[k].bytes, hex)
+          end
+
+          local nops = ""
+          if (size > 5) then
+            for i = 1, size - 5 do
+              nops = string.format("%s %s", nops, "90")
+            end
+            nops = string.format("%s%s", "db", nops)
+          end
+
+
+          local stringdata = {}
+          stringdata[1] = string.format("alloc(orig%s, 1024)", k)
+          stringdata[2] = string.format("alloc(my%s, 1024)", k)
+          stringdata[3] = string.format("label(return%s)", k)
+          stringdata[4] = string.format("registersymbol(orig%s)", k)
+          stringdata[5] = string.format("registersymbol(my%s)", k)
+          stringdata[6] = string.format("orig%s:", k)
+          stringdata[7] = string.format("db%s", ctable[k].bytes)
+          stringdata[8] = string.format("jmp return%s", k)
+          stringdata[9] = string.format("%x:", ctable[k].addr)
+          stringdata[10] = string.format("jmp my%s", k)
+          stringdata[11] = nops
+          stringdata[12] = string.format("return%s:", k)
+
+          ctable[k].aascript = ""
+          for i = 1, #stringdata do
+            ctable[k].aascript = string.format("%s%s\n ", ctable[k].aascript, stringdata[i])
+          end
+
+          ctable[k].aaenable = ""
+          for i = 9, 11 do
+            ctable[k].aaenable = string.format("%s%s\n ", ctable[k].aaenable, stringdata[i])
+          end
+
+          ctable[k].aadisable = string.format("%s\n %s\n", stringdata[9], stringdata[7])
+
+          autoAssemble(ctable[k].aascript)
+          autoAssemble(ctable[k].aadisable)
+
+        else
+          printDual(string.format("Error: could not find AOB for %s", k))
+          foundError = true
+        end
+
+      else
+        ctable[k].addr = 1
+      end
+
+      -- Detects whether the AOB scan was successful
+      if ((ctable[k].addr == nil) and (ctable[k].hook == nil)) then
+        printDual(string.format("Error: could not find AOB for %s", k))
+        foundError = true
+
+        -- If it was, the name and address will be printed to console.
+        -- Possible previous breakpoints will also be removed!
+      elseif ((ctable[k].addr ~= 1) and (ctable[k].hook == nil)) then
+        printDual(string.format("%s @ 0x%X", k, ctable[k].addr))
+        debug_removeBreakpoint(ctable[k].addr)
+      end
+
+      -- This is for the creation of the table entry, which shows how many Hardware Breakpoints there are at the moment
+      if (k == "numOfBreakpoints") then
+        ctable[k].te = createTableEntry()
+
+        memoryrecord_setDescription(ctable[k].te, ctable[k].descr .. "0")
+        memoryrecord_setType(ctable[k].te, vtAutoAssembler)
+        memoryrecord_setScript(ctable[k].te, "")
+
+        -- If there is a description and an address was found, a table entry will be created
+      elseif ((ctable[k].descr ~= nil) and (ctable[k].addr ~= nil) or (ctable[k].hook ~= nil)) then
+        ctable[k].te = createTableEntry()
+        printDBG("Created table entry for '" .. k .. "'.")
+
+        local txt = ""
+        local htxt = ""
+
+        -- If a parent entry was defined, the entry will be appended to it
+        if (ctable[k].parent ~= nil) then
+          txt = " (requires " .. ctable[ctable[k].parent].descr .. ")"
+          memoryrecord_appendToEntry(ctable[k].te, ctable[ctable[k].parent].te)
+        end
+
+        -- Appends the hotkey to the cheat description
+        if (ctable[k].hotkey ~= nil) then
+          local first = true
+          local count = 0
+          local setCount = 0
+
+          for i = 1, 5 do
+            if (ctable[k].hotkey[i] ~= nil) then
+              count = count + 1
+              for o = 1, #hK do
+                if (keyIDs[hK[o]] == ctable[k].hotkey[i]) then
+                  local oldHTxt = htxt
+                  if (first == true) then
+                    htxt = oldHTxt .. hK[o]
+                    first = false
+                    setCount = setCount + 1
+
+                  else
+                    htxt = oldHTxt .. " + " .. hK[o]
+                    setCount = setCount + 1
+                  end
+                end
+              end
+            end
+            if (count ~= setCount) then
+              printDual("Unknown VK-ID: " .. ctable[k].hotkey[i])
+              setCount = count
+            end
+          end
+
+          local tmp = htxt
+          htxt = " [" .. tmp .. "]"
+
+        else
+          htxt = " [No Hotkey]"
+        end
+
+        if (ctable[k].customAddr ~= nil) then
+          memoryrecord_setType(ctable[k].te, 4)
+          memoryrecord_setAddress(ctable[k].te, ctable[k].customAddr)
+
+          txt = ""
+          htxt = ""
+
+        else
+          memoryrecord_setType(ctable[k].te, vtAutoAssembler)
+
+          if (ctable[k].patch ~= nil) then
+            patches[k] = AOBSwap(ctable[k]['patch'][1], ctable[k]['patch'][2], nil, false, true, k, true)
+            local sfunc = "LuaCall(togglePatch('" .. k .. "'"
+            local scriptdata = "[enable]\n" .. sfunc .. ",true))\n[disable]\n" .. sfunc .. ",false))"
+            printDBG("Patch Toggle created: " .. k)
+            memoryrecord_setScript(ctable[k].te, scriptdata)
+
+          elseif (ctable[k].hook ~= nil) then
+            local sfunc = "LuaCall(toggleHook('" .. k .. "'"
+            local scriptdata = "[enable]\n" .. sfunc .. ",true))\n[disable]\n" .. sfunc .. ",false))"
+            printDBG("Hook Toggle created: " .. k)
+            memoryrecord_setScript(ctable[k].te, scriptdata)
+
+          elseif (ctable[k].addr ~= 1) then
+            local sfunc = "LuaCall(toggleBreakpoint('" .. k .. "'"
+            local scriptdata = "[enable]\n" .. sfunc .. ",true))\n[disable]\n" .. sfunc .. ",false))"
+            printDBG("Breakpoint Toggle created: " .. k)
+            memoryrecord_setScript(ctable[k].te, scriptdata)
+
+          else
+            local sfunc = "LuaCall(toggleEntry('" .. k .. "'"
+            local scriptdata = "[enable]\n" .. sfunc .. ",true))\n[disable]\n" .. sfunc .. ",false))"
+            printDBG("Entry Toggle created: " .. k)
+            memoryrecord_setScript(ctable[k].te, scriptdata)
+          end
+        end
+
+        -- Set description
+        memoryrecord_setDescription(ctable[k].te, ctable[k].descr .. txt .. htxt)
+      end
+
+      -- If (a) hotkey(s) was/were defined, it/they will be created here
+      if (ctable[k].hotkey ~= nil) then
+        local func =
+          function()
+            if (ctable[k].on == false) then
+              toggle(k, true)
+
+            else
+              toggle(k, false)
+            end
+          end
+
+        local hotkey = ctable[k].hotkey
+        ctable[k].he = createNonRepHotkey(func, hotkey)
+        printDBG("Created hotkey for '" .. k .. "'.")
+      end
+
+      -- If safe is nil, safe will be set to true
+      if (ctable[k].safe == nil) then
+        ctable[k].safe = true
+      end
+
+      -- If the swb arguement isn't set, it will be set to 0
+      if (ctable[k].swb == nil) then
+        ctable[k].swb = 0
+      end
+
+      ctable[k].on = false
+      ctable[k].toUnfreeze = false
+      printDBG("Set properties for '" .. k .. "'.")
+    end
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Trampoline Hooks
+  ----------------------------------------------------------------------------------------------
+
+  -- Damage Source Detection
+  autoAssemble([[
+  mydamageSrc:
+  PUSH EAX
+  MOV EAX,[ECX+01C1]
+  MOV [dmgSrcFlag],EAX
+  POP EAX
+  JMP origdamageSrc
+  ]])
+
+  -- Thruster Mass Modifier
+  autoAssemble([[
+  label(leave)
+  label(CheckToggle)
+
+  mythrusterMass:
+  PUSH EAX
+  PUSH EBX
+  MOV EBX,["EliteDangerous32.exe"+01323E20] // Base
+  CMP EBX,00
+  JE leave
+  MOV EBX,[EBX+10] // Offset 0
+  CMP EBX,00
+  JE leave
+  MOV EBX,[EBX+0290] // Offset 1
+  CMP EBX,00
+  JE leave
+  MOV EBX,[EBX+F4] // Offset 2
+  CMP EBX,00
+  JE leave
+  CMP EBX,ECX
+  JNE CheckToggle
+
+  MOV EAX,[massMod]
+  MOV [ECX+0160],EAX
+  JMP leave
+
+  CheckToggle:
+  CMP [massToggle],00
+  JE leave
+  MOV EAX,(float)0
+  MOV [ECX+0160],EAX
+
+  leave:
+  POP EBX
+  POP EAX
+
+  PUSH ECX
+  MOV ECX,[ECX]
+  MOV [TablePointer],ECX
+  POP ECX
+
+  JMP origthrusterMass
+  ]])
+
+  -- Compass Reading
+  autoAssemble([[
+  alloc(name,10)
+  registersymbol(name)
+
+  mycompass:
+  MOV EAX,[ESP+04]
+  MOV EDX,[name]
+  CMP DWORD [EAX],EDX
+  JNE origcompass
+  MOV EDX,[name+04]
+  CMP DWORD [EAX+04],EDX
+  JNE origcompass
+  MOV EDX,[name+08]
+  CMP DWORD [EAX+08],EDX
+  JNE origcompass
+  MOV EDX,[name+0C]
+  CMP DWORD [EAX+0C],EDX
+  JNE origcompass
+
+  /// MATCH
+  MOV EDX,[ESP+08]
+  MOV EAX,[EDX+08]
+  MOV [flx],EAX
+  MOV EAX,[EDX+0C]
+  MOV [fly],EAX
+  MOV EAX,[EDX+10]
+  MOV [flz],EAX
+  JMP origcompass
+
+  name:
+  db 'SetCompassData',0,0
+  ]])
+
+  -- Voucher Multiplication
+  if (ctable['voucher'].hide ~= true) then
+    memoryrecord_setType(ctable['voucherMul'].te, 2)
+    autoAssemble([[
+    myvoucher:
+    PUSH EAX
+    MOV EAX,[ESP+14]
+    MUL [vMul]
+    MOV [ESP+14],EAX
+    POP EAX
+    JMP origvoucher
+    ]])
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Setting Breakpoint for receiveHealth if no error occurred
+  ----------------------------------------------------------------------------------------------
+  if (foundError == true) then
+    printDual("Some patterns weren't found! Check the log/console for more information and/or ask the forum for help.")
+
+  else
+    printDual("-------------------------")
+    printDual("Initialized!")
+    printDual("Applying your Settings!")
+    printDual("-------------------------\n")
+
+    -- Applies your settings
+    for k in ordered(ctable) do
+      if ((ctable[k].enableOnStart == 1) or (ctable[k].force == true)) then
+        if (ctable[k].descr ~= nil) then
+          toggle(k, true)
+
+        elseif (ctable[k].patch == nil) then
+          toggleBreakpoint(k, true)
+
+        else
+          togglePatch(k, true)
+        end
+      end
+    end
+
+    local func =
+      function()
+        if (pendingDeletion == true) then
+          for k in ordered(ctable) do
+            if (ctable[k].toUnfreeze == true) then
+              memoryrecord_unfreeze(ctable[k].te)
+            end
+          end
+
+          pendingDeletion = false
+          printDBG("Pending Deletions done!")
+        end
+      end
+
+    pdTimer = createTimer()
+    timer_setInterval(pdTimer, 5000)
+    timer_onTimer(pdTimer, func)
+
+    printDual("-------------------------")
+    printDual("Done!")
+    printDual("-------------------------\n")
+  end
+
+  function navi(thread)
+    thread.name = 'Navi Thread'
+    local navifilename = eliteoutdir .. "navi.txt"
+
+    while true do
+      if (naviToggle) then
+        local f = assert(io.open(navifilename, "w+"))
+        f:write(string.format("%f\n%f\n%f", readFloat(flx), readFloat(fly), readFloat(flz)))
+        f:close()
+      else
+        sleep(1000)
+      end
+    end
+  end
+
+  -- Create Thread for navigation
+  createNativeThread(navi)
+end

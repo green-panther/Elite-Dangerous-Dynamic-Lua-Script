@@ -21,7 +21,7 @@ flz := 1
 ; Up = Pitch Up
 ; Down = Pitch Down
 ; TAB = Engine Boost
-; Lua Script: "Auto Drop Safe" enabled for auto dropping at end (also turn of "show on print" in ce)
+; Lua Script: "Auto Drop Safe" enabled for auto dropping at end (also turn off "show on print" in ce)
 ; Lua Script: "Compass" and "Navi" enabled
 
 F10::

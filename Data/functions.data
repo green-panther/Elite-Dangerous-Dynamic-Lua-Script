@@ -1,0 +1,785 @@
+return function()
+  ------------------------------------------------------------------------------------
+  -- Toggle Breakpoint
+  -- toggleBreakpoint(name, state): For table entry only
+  -- tb(name, state): Use this to toggle breakpoints manually
+  ------------------------------------------------------------------------------------
+  numOfBreakpoints = 0
+
+  function toggleBreakpoint(name, state)
+  -- This if-part is for the manual market dump
+  if (name == "mdManualD") then
+    if (ctable[name].toUnfreeze == false) then
+      save_marketdata()
+
+      local txt = ctable[name].descr .. " (pending deletion)"
+      ctable[name].toUnfreeze = true
+      ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
+      memoryrecord_setDescription(ctable[name].te, txt)
+      state = false
+      pendingDeletion = true
+
+    elseif (ctable[name].toUnfreeze == true) then
+      memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
+      ctable[name].toUnfreeze = false
+      state = false
+      pendingDeletion = false
+    end
+  end
+
+  if ((state == false) and (name == "udpStream")) then
+    object_destroy(streamTimer)
+    streamTimer = nil
+  end
+
+  -- If the entry has a valid address, this if statement will be executed
+  if (ctable[name].addr ~= 1) then
+    -- For enabling
+    if ((state == true) and (ctable[name].on == false)) then
+      settings.Value[name] = 1
+      -- Special case for SW Breakpoints
+      if (ctable[name].swb == 1) then
+        for i = 1, 4 - numOfBreakpoints do
+          debug_setBreakpoint(i)
+        end
+
+        debug_setBreakpoint(ctable[name].addr)
+        if (ctable[name].descr ~= nil) then
+          printDual(string.format("\n--> (ON|BREAKPOINT) %s\n", ctable[name].descr))
+
+        else
+          printDBG(string.format("\n--> (ON|BREAKPOINT) %s\n", name))
+        end
+
+        for i = 1, 5 do
+          debug_removeBreakpoint(i)
+        end
+
+      -- If the number of current breakpoints is under 4, a breakpoint will be set
+      elseif (numOfBreakpoints < 4 or ctable['noWarning'].on == true) then
+        if (ctable[name].safe == true) then
+          numOfBreakpoints = numOfBreakpoints + 1
+          printDual(string.format("\n--> (ON|BREAKPOINT) %s\n", ctable[name].descr))
+          debug_setBreakpoint(ctable[name].addr)
+
+        -- If the cheat is unsafe, show a warning dialoge
+        elseif (ctable[name].safe == false) then
+          if (ctable['noWarning'].on == false) then
+            if (messageDialog("This cheat is unsafe! Do you want to activate it anyway?", 0, 0, 1) == mrYes) then
+              numOfBreakpoints = numOfBreakpoints + 1
+              printDual(string.format("\n--> (ON|BREAKPOINT) %s\n", ctable[name].descr))
+              debug_setBreakpoint(ctable[name].addr)
+
+            -- If the user pressed "No", the entry will be unfrozen
+            else
+              local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
+              ctable[name].toUnfreeze = true
+              ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
+              pendingDeletion = true
+              memoryrecord_setDescription(ctable[name].te, txt)
+              state = false
+              settings.Value[name] = 0
+            end
+
+          else
+            numOfBreakpoints = numOfBreakpoints + 1
+            printDual(string.format("\n--> (ON|BREAKPOINT) %s\n", ctable[name].descr))
+            debug_setBreakpoint(ctable[name].addr)
+          end
+        end
+
+      -- Else, a  warning dialoge will be shown
+      else
+        if (messageDialog("You are at the maximum count of 4 HW Breakpoints! Anymore will result in SW Breakpoints. Do you want to turn it on anyway?", 0, 0, 1) == mrYes) then
+          numOfBreakpoints = numOfBreakpoints + 1
+          printDual(string.format("\n--> (ON|BREAKPOINT) %s\n", ctable[name].descr))
+          debug_setBreakpoint(ctable[name].addr)
+
+        -- If the user pressed "No", the entry will be unfrozen
+        else
+          local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
+          ctable[name].toUnfreeze = true
+          ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
+          pendingDeletion = true
+          memoryrecord_setDescription(ctable[name].te, txt)
+          state = false
+          settings.Value[name] = 0
+        end
+      end
+
+    -- For disabling
+    else
+      settings.Value[name] = 0
+      -- Special case for SWBreakpoints
+      if (ctable[name].swb == 1) then
+        debug_removeBreakpoint(ctable[name].addr)
+        if (ctable[name].descr ~= nil) then
+          printDual(string.format("\n--> (OFF|BREAKPOINT) %s\n", ctable[name].descr))
+
+        else
+          printDBG(string.format("\n--> (OFF|BREAKPOINT) %s | Removed SW Breakpoint\n", name))
+        end
+
+      -- Normal removal of breakpoint
+      elseif (ctable[name].toUnfreeze == false) then
+        numOfBreakpoints = numOfBreakpoints - 1
+        printDual(string.format("\n--> (OFF|BREAKPOINT) %s\n", ctable[name].descr))
+        debug_removeBreakpoint(ctable[name].addr)
+
+      -- Unfreezing of entry
+      else
+        memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
+        ctable[name].toUnfreeze = false
+        pendingDeletion = false
+      end
+    end
+  end
+
+  -- Updating entry for number of breakpoints
+  memoryrecord_setDescription(ctable['numOfBreakpoints'].te, "H-Breakpoints: " .. numOfBreakpoints)
+
+  -- Setting the state of the entry
+  ctable[name].on = state
+  if (state == true) then
+      settings.Value[name] = 1
+
+    else
+      settings.Value[name] = 0
+  end
+
+  -- For custom toggles
+  if (name == "debug") then
+    if (state == true) then
+      debugmode = true
+      printDual("--> Debug Output Enabled!")
+
+    else
+      debugmode = false
+      printDual("--> Debug Output Disabled!")
+    end
+
+  elseif (name == "thrusterToggle") then
+    if (state == true) then
+      writeFloat(thToggle, 1)
+
+    else
+      writeFloat(thToggle, 0)
+    end
+  end
+
+  -- Playing beep sound
+  beep()
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Toggle Patch function
+  ----------------------------------------------------------------------------------------------
+  function togglePatch(name, state)
+  if ((state == true) and (ctable[name].on == false)) then
+    settings.Value[name] = 1
+    if ((ctable['noWarning'].on == true) or (ctable[name].safe == true)) then
+      patches[name][1].enable()
+      printDual(string.format("\n--> (ON|PATCH) %s\n", ctable[name].descr))
+
+    elseif (ctable[name].safe == false) then
+      if (messageDialog("This cheat is unsafe! Do you want to activate it anyway?", 0, 0, 1) == mrYes) then
+        patches[name][1].enable()
+        printDual(string.format("\n--> (ON|PATCH) %s\n", ctable[name].descr))
+
+      -- If the user pressed "No", the entry will be unfrozen
+      else
+        local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
+        ctable[name].toUnfreeze = true
+        ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
+        pendingDeletion = true
+        memoryrecord_setDescription(ctable[name].te, txt)
+        state = false
+        settings.Value[name] = 0
+      end
+    end
+
+  else
+    settings.Value[name] = 0
+    if (ctable[name].toUnfreeze == false) then
+      patches[name][1].disable()
+      printDual(string.format("\n--> (OFF|PATCH) %s\n", ctable[name].descr))
+
+    else
+      memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
+      ctable[name].toUnfreeze = false
+      pendingDeletion = false
+    end
+  end
+
+  -- Setting the state of the entry
+  ctable[name].on = state
+
+  -- Playing beep sound
+  beep()
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Toggle Hook function
+  ----------------------------------------------------------------------------------------------
+  function toggleHook(name, state)
+    if ((state == true) and (ctable[name].on == false)) then
+      settings.Value[name] = 1
+      if ((ctable['noWarning'].on == true) or (ctable[name].safe == true)) then
+        autoAssemble(ctable[name].aaenable)
+        printDual(string.format("\n--> (ON|HOOK) %s\n", ctable[name].descr))
+
+      elseif (ctable[name].safe == false) then
+        if (messageDialog("This cheat is unsafe! Do you want to activate it anyway?", 0, 0, 1) == mrYes) then
+          autoAssemble(ctable[name].aaenable)
+          printDual(string.format("\n--> (ON|HOOK) %s\n", ctable[name].descr))
+
+          -- If the user pressed "No", the entry will be unfrozen
+        else
+          local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
+          ctable[name].toUnfreeze = true
+          ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
+          pendingDeletion = true
+          memoryrecord_setDescription(ctable[name].te, txt)
+          state = false
+          settings.Value[name] = 0
+        end
+      end
+
+    else
+      settings.Value[name] = 0
+      if (ctable[name].toUnfreeze == false) then
+        autoAssemble(ctable[name].aadisable)
+        printDual(string.format("\n--> (OFF|HOOK) %s\n", ctable[name].descr))
+
+      else
+        memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
+        ctable[name].toUnfreeze = false
+        pendingDeletion = false
+      end
+    end
+
+    -- Setting the state of the entry
+    ctable[name].on = state
+
+    -- Playing beep sound
+    beep()
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Toggle Hook function
+  ----------------------------------------------------------------------------------------------
+  function toggleEntry (name, state)
+    if ((state == true) and (ctable[name].on == false)) then
+      settings.Value[name] = 1
+      if ((ctable['noWarning'].on == true) or (ctable[name].safe == true)) then
+        printDual(string.format("\n--> (ON|ENTRY) %s\n", ctable[name].descr))
+
+      elseif (ctable[name].safe == false) then
+        if (messageDialog("This cheat is unsafe! Do you want to activate it anyway?", 0, 0, 1) == mrYes) then
+          printDual(string.format("\n--> (ON|ENTRY) %s\n", ctable[name].descr))
+
+        -- If the user pressed "No", the entry will be unfrozen
+        else
+          local txt = memoryrecord_getDescription(ctable[name].te) .. " (pending deletion)"
+          ctable[name].toUnfreeze = true
+          ctable[name].oldDescr = memoryrecord_getDescription(ctable[name].te)
+          pendingDeletion = true
+          memoryrecord_setDescription(ctable[name].te, txt)
+          state = false
+          settings.Value[name] = 0
+        end
+      end
+
+    else
+      settings.Value[name] = 0
+      if (ctable[name].toUnfreeze == false) then
+        printDual(string.format("\n--> (OFF|ENTRY) %s\n", ctable[name].descr))
+
+      else
+        memoryrecord_setDescription(ctable[name].te, ctable[name].oldDescr)
+        ctable[name].toUnfreeze = false
+        pendingDeletion = false
+      end
+    end
+
+    -- Setting the state of the entry
+    ctable[name].on = state
+
+    -- Playing beep sound
+    beep()
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- General toggle function
+  ----------------------------------------------------------------------------------------------
+  function toggle(name, state)
+    if (state == true) then
+      memoryrecord_freeze(ctable[name].te)
+
+    elseif (state == false) then
+      memoryrecord_unfreeze(ctable[name].te)
+
+    else
+      printDual("Please enter a valid state!")
+    end
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- User defined vars.. edit if you wish
+  ----------------------------------------------------------------------------------------------
+  fnMarketDir = eliteoutdir .. [[MarketDump\]] -- export directory
+  os.execute([[md "]] .. fnMarketDir .. [["]])
+  fnMarketFile = fnMarketDir .. 'ED_marketdata' -- used filename (excl .csv or .bpc or .price) if ctable['mdFixedD'].on is true
+
+  ----------------------------------------------------------------------------------------------
+  -- Marketdata variables
+  ----------------------------------------------------------------------------------------------
+  cur_userid = "EO1234567f" -- some random userid of EliteOCR for BPC format
+  cur_star = "" -- gets filled dynamicly
+  cur_station = "" -- gets filled dynamicly
+
+  last_marketdata = ""
+  last_markettime = ""
+  last_marketutc = ""
+  last_markettdp = ""
+
+  -- tables for manually translated entries
+  -- An empty string will make that entry filtered out
+  commodities = {}
+  commodities["AgriculturalMedicines"] = "Agri-Medicines"
+  commodities["HeliostaticFurnaces"] = "Microbial Furnaces"
+  commodities["MarineSupplies"] = "Marine Equipment"
+  commodities["HazardousEnvironmentSuits"] = "H.E. Suits"
+  commodities["AutoFabricators"] = "Auto-Fabricators"
+  commodities["TerrainEnrichmentSystems"] = "Land Enrichment Systems"
+  commodities["BioReducingLichen"] = "Bioreducing Lichen"
+  commodities["AtmosphericExtractors"] = "Atmospheric Processors"
+  commodities["NonLethalWeapons"] = "Non-Lethal Weapons"
+  commodities["BasicNarcotics"] = "Narcotics"
+
+  -- table for demand names
+  demand = {}
+  demand["1"] = "Low"
+  demand["2"] = "Med"
+  demand["3"] = "High"
+  demand["0"] = ""
+
+  -- table for demand names - TDP format
+  tdp_demand = {}
+  tdp_demand["1"] = "L"
+  tdp_demand["2"] = "M"
+  tdp_demand["3"] = "H"
+  tdp_demand["0"] = "?"
+
+  ----------------------------------------------------------------------------------------------
+  -- Parse received Inventory data
+  ----------------------------------------------------------------------------------------------
+  function parse_marketdata(data)
+    -- cleanup begin and end of inventory data
+    data = string.gsub(data, "^<.+<commodities>", "", 1) -- remove start + current inventory
+    data = string.gsub(data, "</commodities></data>$", "", 1) -- remove end part
+    -- now we have only items from the market
+    data = string.gsub(data, "</item>", "|") -- replace each last /item separator with | so now we have record with | separator
+
+    if (data ~= last_marketdata) then -- only if it differs from last marketdata
+      -- save it in last_market fields
+      last_marketutc = os.date('!%Y-%m-%dT%H:%M:%S+00:00') -- trade tools expects UTC time
+      last_markettdp = os.date('!%Y-%m-%d %H:%M:%S') -- time stamp for TDP
+      last_markettime = os.date('%Y-%m-%dT%H.%M.%S') -- used in filename
+      last_marketdata = data
+
+      if (ctable['mdAutoD'].on == true) then
+        save_marketdata()
+
+      else
+        printDual("New marketdata received")
+      end
+    end
+  end
+
+
+  ----------------------------------------------------------------------------------------------
+  -- Save Marketdata in BPC and/or CSV and/or TDP file
+  -- You can manually call this via the console (CTRL + ALT + SHIFT + L)
+  ----------------------------------------------------------------------------------------------
+  function save_marketdata()
+    if (last_marketdata ~= "") then
+      if (ctable['mdFixedD'].on == false) then
+        fnMarketDataCSV = fnMarketDir .. cur_star .. '.' .. cur_station .. '.' .. last_markettime .. '.csv'
+        fnMarketDataBPC = fnMarketDir .. cur_star .. '.' .. cur_station .. '.' .. last_markettime .. '.bpc'
+        fnMarketDataTDP = fnMarketDir .. cur_star .. '.' .. cur_station .. '.' .. last_markettime .. '.prices'
+
+      else
+        fnMarketDataCSV = fnMarketFile .. '.csv'
+        fnMarketDataBPC = fnMarketFile .. '.bpc'
+        fnMarketDataTDP = fnMarketFile .. '.prices'
+      end
+
+      if (ctable['mdCSV'].on == true) then
+        fCSV = assert(io.open(fnMarketDataCSV, "w"))
+        fCSV:write("System;Station;Commodity;Sell;Buy;Demand;;Supply;;Date;\n")
+      end
+
+      if (ctable['mdBPC'].on == true) then
+        fBPC = assert(io.open(fnMarketDataBPC, "w"))
+        fBPC:write("UserID;System;Station;Commodity;Sell;Buy;Demand;;Supply;;Date;\n")
+      end
+
+      if (ctable['mdTDP'].on == true) then
+        fTDP = assert(io.open(fnMarketDataTDP, "w"))
+        fTDP:write(string.format("@ %s/%s\n", cur_star, cur_station))
+      end
+
+      -- data available for each item:    stock;buyPrice;sellPrice;fencePrice;demand;legality;meanPrice;demandBracket;stockBracket;consumer;producer;rare
+      for s in string.gmatch(last_marketdata, "<item>([%w <>/]+)|") do
+        -- got an item, now extract all key and values and store them
+        local t = {}
+
+        for k, v in s:gmatch("<(%a+)>([%w ]*)</%a+>") do
+          t[k] = v
+        end
+
+        -- internal names do not contain spaces, add them where a capital letter is
+        if (commodities[t.name] == nil) then
+          t.name = string.gsub(t.name, "([a-z])([A-Z])", "%1 %2")
+
+        else
+          t.name = commodities[t.name]
+        end
+
+        -- Don't save some items, salvage, nonmarker, rares and illegal ones
+        if (t.name ~= nil and t.name ~= "" and t.categoryname ~= "Salvage" and t.categoryname ~= "NonMarketable" and t.rare ~= '1' and t.legality ~= 'I') then
+          -- Ignore items with no demand and no stock
+          if ((t.demand ~= '0') or (t.stock ~= '0')) then
+            if (ctable['mdBPC'].on == true) then
+              -- Save it in EliteOCR layout BPC
+              fBPC:write(string.format("%s;%s;%s;%s;%u;%u;%u;%s;%u;%s;%s;\n", cur_userid, cur_star, cur_station, t.name, t.sellPrice, t.buyPrice, t.demand, demand[t.demandBracket], t.stock, demand[t.stockBracket], last_marketutc))
+            end
+
+            if (ctable['mdCSV'].on == true) then
+              -- Save it in EliteOCR CSV Format (same as BPC but without dummy user id)
+              fCSV:write(string.format("%s;%s;%s;%u;%u;%u;%s;%u;%s;%s;\n", cur_star, cur_station, t.name, t.sellPrice, t.buyPrice, t.demand, demand[t.demandBracket], t.stock, demand[t.stockBracket], last_marketutc))
+            end
+
+            if (ctable['mdTDP'].on == true) then
+              -- Save it in EliteOCR TDP Layout (Trade Dangerous Prices)
+              if (t.demand == "0") then
+                demandLevel = "?"
+
+              else
+                demandLevel = string.format("%u%s", t.demand, tdp_demand[t.demandBracket])
+              end
+
+              if (t.stock == "0") then
+                stockLevel = "-"
+
+              else
+                stockLevel = string.format("%u%s", t.stock, tdp_demand[t.stockBracket])
+              end
+
+              fTDP:write(string.format("  %24s %7u %7u %10s %10s %s\n", t.name, t.sellPrice, t.buyPrice, demandLevel, stockLevel, last_markettdp))
+            end
+          end
+        end
+      end
+
+      if (ctable['mdCSV'].on == true) then
+        printDual("Marketdata saved in " .. fnMarketDataCSV)
+        fCSV:close()
+      end
+
+      if (ctable['mdBPC'].on == true) then
+        printDual("Marketdata saved in " .. fnMarketDataBPC)
+        fBPC:close()
+      end
+
+      if (ctable['mdTDP'].on == true) then
+        printDual("Marketdata saved in " .. fnMarketDataTDP)
+        fTDP:close()
+      end
+
+    else
+      printDual("No last marketdata available")
+    end
+
+    return false
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- AOB Swap/Patch function
+  ----------------------------------------------------------------------------------------------
+  function AOBSwap(Search, Replace, Index, ActiveHack, RegisterAsAddress, RegisteredAddressName, ReturnTable)
+    local AoBLength
+    local Table
+    local AddressCount = ''
+    if (ReturnTable) then
+      Table = {}
+      AoBLength = string.gsub(Search, ' ', ''):len()
+    end
+    if (not Index) then
+      AddressCount = 1
+    end
+    local ScanAoB = AOBScan(Search, game)
+    if (ScanAoB) then
+      local count = stringlist_getCount(ScanAoB)
+      if (Index) then
+        if (Index > count) then
+          Index = count
+        end
+      end
+      if (count) then
+        for i = 1, count do
+          if (Index) then
+            i = Index
+          end
+          local address = stringlist_getString(ScanAoB, i - 1)
+          local symbol
+          --
+          if (RegisterAsAddress and RegisterAsAddress ~= '') then
+            unregisterSymbol(RegisteredAddressName .. AddressCount)
+            registerSymbol(RegisteredAddressName .. (AddressCount or ''), address)
+            symbol = RegisteredAddressName .. AddressCount
+            if (not Index) then
+              AddressCount = AddressCount + 1
+            end
+          end
+          --
+          local original_AoB
+          if (ReturnTable and AoBLength) then
+            original_AoB = ''
+            local ReadBytes = readBytes(address, (AoBLength / 2), true)
+            for _, String in pairs(ReadBytes) do
+              local Hex = string.format("%x", String)
+              if (Hex:len() == 1) then
+                Hex = '0' .. Hex
+              end
+              original_AoB = string.format("%s %s", original_AoB, Hex)
+            end
+          end
+          --
+          if (ActiveHack) then
+            for i = 1, string.len(Replace), 3 do
+              local z = string.sub(Replace, i, i + 2)
+              local x, y = string.find(z, "%?+")
+              if (x == nil) then
+                autoAssemble(address .. "+" .. (string.format("%x", (i - 1) / 3)) .. ':\ndb ' .. z)
+                printDBG("Patched: 0x" .. address .. "+" .. (string.format("%x", (i - 1) / 3)) .. ' --> ' .. z)
+              end
+            end
+          end
+          if (Table and ReturnTable and AoBLength) then
+            Table[#Table + 1] = {
+              address = address;
+              symbol = symbol;
+              originalaob = original_AoB;
+              enable = function()
+                for i = 1, string.len(Replace), 3 do
+                  local z = string.sub(Replace, i, i + 2)
+                  local x, y = string.find(z, "%?+")
+                  if (x == nil) then
+                    autoAssemble(address .. "+" .. (string.format("%x", (i - 1) / 3)) .. ':\ndb ' .. z)
+                    printDBG("Patched: 0x" .. address .. "+" .. (string.format("%x", (i - 1) / 3)) .. ' --> ' .. z)
+                  end
+                end
+              end;
+              disable = function()
+                autoAssemble(address .. ':\ndb ' .. original_AoB)
+                printDBG("Reverse Patched: 0x" .. address .. " to " .. original_AoB)
+              end;
+            }
+            local TableIndex = Table[#Table]
+            TableIndex.remove = function()
+              TableIndex.disable()
+              for k, v in pairs(TableIndex) do
+                TableIndex[k] = nil
+              end
+              TableIndex = nil
+            end
+            Table[symbol] = TableIndex
+          end
+          if (Index and i == Index) then
+            break
+          end
+        end
+      end
+      object_destroy(ScanAoB)
+    end
+    if (Table and ReturnTable) then
+      return Table
+    end
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Print all patches to DBG console
+  ----------------------------------------------------------------------------------------------
+  function showPatches(t)
+    for k in ordered(t) do
+      printDBG(t[k][1].symbol .. ": " .. t[k][1].address .. " | " .. t[k][1].originalaob)
+    end
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Read a 32 bits value with a 64 bit program
+  ----------------------------------------------------------------------------------------------
+  function readAddress(a)
+    local v = readInteger(a)
+
+    if (targetIs64Bit()) then
+      return v
+
+    elseif (v ~= nil) then
+      return v % 0x100000000
+
+    else
+      return nil
+    end
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Hex to Float/Double conversion and vice versa
+  ----------------------------------------------------------------------------------------------
+  function hex2float(n)
+    return byteTableToFloat(dwordToByteTable(n))
+  end
+
+  function float2hex(n)
+    return byteTableToDword(floatToByteTable(n))
+  end
+
+  function hex2double(n)
+    return byteTableToDouble(qwordToByteTable(n))
+  end
+
+  function double2hex(n)
+    return byteTableToQword(doubleToByteTable(n))
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Randomizer
+  ----------------------------------------------------------------------------------------------
+  function getRandomFloat(min, max)
+    return min + math.random() * (max - min)
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Ordered table function
+  ----------------------------------------------------------------------------------------------
+  local function Ordered()
+    local key2val, nextkey, firstkey = {}, {}, {}
+    nextkey[nextkey] = firstkey
+
+    local function onext(self, key)
+      while key ~= nil do
+        key = nextkey[key]
+        local val = self[key]
+        if val ~= nil then return key, val end
+      end
+    end
+
+    local selfmeta = firstkey
+
+    selfmeta.__nextkey = nextkey
+
+    function selfmeta:__newindex(key, val)
+      rawset(self, key, val)
+      if nextkey[key] == nil then
+        nextkey[nextkey[nextkey]] = key
+        nextkey[nextkey] = key
+      end
+    end
+
+    function selfmeta:__pairs() return onext, self, firstkey end
+
+    return setmetatable(key2val, selfmeta)
+  end
+
+  function orderedTable(t)
+    local currentIndex = 1
+    local metaTable = {}
+
+    function metaTable:__newindex(key, value)
+      rawset(self, key, value)
+      rawset(self, currentIndex, key)
+      currentIndex = currentIndex + 1
+    end
+
+    return setmetatable(t or {}, metaTable)
+  end
+
+  function ordered(t)
+    local currentIndex = 0
+    local function iter(t)
+      currentIndex = currentIndex + 1
+      local key = t[currentIndex]
+      if key then return key, t[key] end
+    end
+
+    return iter, t
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Check the NPC flag
+  ----------------------------------------------------------------------------------------------
+  function isNPC(arg)
+    if (arg == 0) then
+      return true
+    end
+
+    local shipObj = readAddress(arg + 0x160)
+    if (shipObj == nil or shipObj == 0) then
+      return true
+    end
+
+    local flag = readBytes(shipObj + 152, 1, false)
+    if (flag == 1) then
+      return true
+
+    elseif (flag == 0) then
+      return false
+    end
+
+    printDBG("NPC flag error: " .. tostring(flag))
+    return false
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- AOB scan
+  ----------------------------------------------------------------------------------------------
+  function AOBScan2(pattern, module)
+    module = module or script.ed
+    local startaddr = getAddress(module)
+    local endaddr = startaddr + getModuleSize(module)
+    local memscan = createMemScan()
+
+    memscan_returnOnlyOneResult(memscan, true)
+    memscan_firstScan(memscan, soExactValue, vtByteArray, 0, pattern, "", startaddr, endaddr, "*X*W*C", 0, "", true, true, false, false)
+    memscan_waitTillDone(memscan)
+
+    return memscan_getOnlyResult(memscan)
+  end
+
+  ----------------------------------------------------------------------------------------------
+  -- Hotkey creation
+  -- Creates non repetitive hotkeys
+  ----------------------------------------------------------------------------------------------
+  nonRepHotkeysList = {}
+  function createNonRepHotkey(func, ...)
+
+    local changedBehaviour =
+      function(sender)
+        local ID = userDataToInteger(sender)
+        local TC = getTickCount()
+        local elapTicks = TC - nonRepHotkeysList[ID]
+
+        if (elapTicks > 300) then func(sender) end
+
+        nonRepHotkeysList[ID] = TC
+      end
+
+    local hk = createHotkey(changedBehaviour, ...)
+    hk.DelayBetweenActivate = 10
+    nonRepHotkeysList[userDataToInteger(hk)] = getTickCount()
+
+    return hk
+  end
+end
