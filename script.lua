@@ -98,7 +98,7 @@ udpfilename = logfiledir .. 'udpLog.' .. os.date('%y%m%d%H%M') .. '.log'
 
 function printDBG(str)
   if (ctable['debug'].on == true or debugmode == true) then
-    safe.execute(writeFile, logfilename, "a+", string.format("[%s] %s", tostring(os.date()), str))
+    safe.execution(writeFile, logfilename, "a+", string.format("[%s] %s", tostring(os.date()), str))
   end
 end
 
@@ -137,8 +137,8 @@ function httpGet(url, file)
   cmd:close()
 
   if (requestGood) then
-    result = safe.execute(readFile, tmpfile)
-    safe.execute(writeFile, file, "w+", tmpfile)
+    result = safe.execution(readFile, tmpfile)
+    safe.execution(writeFile, file, "w+", tmpfile)
     if (exist(tmpfile)) then
       os.remove(file)
     end
@@ -146,7 +146,7 @@ function httpGet(url, file)
 
   else
     if (exist(file)) then
-      result = safe.execute(readFile, file)
+      result = safe.execution(readFile, file)
       printDual(string.format("Couldn't update file! Using saved one!"))
 
     else
@@ -163,12 +163,12 @@ end
 gitDataUrl = [[https://raw.githubusercontent.com/Randshot/Elite-Dangerous-Dynamic-Lua-Script/master/Data/]]
 
 function updateData()
-  safe.execute(httpGet, gitDataUrl .. "version.data", "version.data")
-  safe.execute(httpGet, gitDataUrl .. "ctable.data", "ctable.data")
-  safe.execute(httpGet, gitDataUrl .. "main.data", "main.data")
-  safe.execute(httpGet, gitDataUrl .. "breakpoint.data", "breakpoint.data")
-  safe.execute(httpGet, gitDataUrl .. "functions.data", "functions.data")
-  safe.execute(httpGet, gitDataUrl .. "keys.data", "keys.data")
+  safe.execution(httpGet, gitDataUrl .. "version.data", "version.data")
+  safe.execution(httpGet, gitDataUrl .. "ctable.data", "ctable.data")
+  safe.execution(httpGet, gitDataUrl .. "main.data", "main.data")
+  safe.execution(httpGet, gitDataUrl .. "breakpoint.data", "breakpoint.data")
+  safe.execution(httpGet, gitDataUrl .. "functions.data", "functions.data")
+  safe.execution(httpGet, gitDataUrl .. "keys.data", "keys.data")
 end
 
 ----------------------------------------------------------------------------------------------
@@ -176,10 +176,10 @@ end
 ----------------------------------------------------------------------------------------------
 function loadData(dataname)
   if (exist(datadir .. dataname)) then
-    local data = safe.execute(loadstring, safe.execute(readFile, datadir .. dataname))()
+    local data = safe.execution(loadstring, safe.execution(readFile, datadir .. dataname))()
     return data
   else
-    local data = safe.execute(httpGet, gitDataUrl .. dataname, dataname)
+    local data = safe.execution(httpGet, gitDataUrl .. dataname, dataname)
     return data
   end
 end
