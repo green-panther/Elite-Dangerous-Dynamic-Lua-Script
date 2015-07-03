@@ -70,13 +70,37 @@ hDebug = { VK_LCONTROL, VK_F8 }
 hOut = { VK_LCONTROL, VK_F9 }
 
 ----------------------------------------------------------------------------------------------
+-- File related functions
+----------------------------------------------------------------------------------------------
+function exists(name)
+    if (type(name) ~= "string") then return false end
+    return os.rename(name, name) and true or false
+end
+
+function isFile(name)
+    if type(name) ~= "string" then return false end
+    if (not exists(name)) then return false end
+    local f = io.open(name)
+    if (f) then
+        f:close()
+        return true
+    end
+    return false
+end
+
+function isDir(name)
+    return (exists(name) and not isFile(name))
+end
+
+function readFile(f, mode) local r = io.open(f, mode or 'rb') local ret = r:read('*all') r:close() return ret end
+function writeFile(f, mode, str) local r = io.open(f, mode or 'w+') r:write(str) r:close() end
+
+----------------------------------------------------------------------------------------------
 -- Logging for debugging purposes
 -- Note 1: You can find the logs in "~\Documents\EliteOut\"
 -- Note 2: The log files will be sorted by the date of script execution
 ----------------------------------------------------------------------------------------------
-function exist(f) return type(f) == 'string' and os.rename(f, f) and true or false end
-function readFile(f, mode) local r = io.open(f, mode or 'rb') local ret = r:read('*all') r:close() return ret end
-function writeFile(f, mode, str) local r = io.open(f, mode or 'w+') r:write(str) r:close() end
+--function exist(f) return type(f) == 'string' and os.rename(f, f) and true or false end
 
 settings = getSettings('EDScript')
 foundError = false
@@ -86,13 +110,21 @@ init = true
 
 userdir = os.getenv("USERPROFILE")
 eliteoutdir = userdir .. [[\Documents\EliteOut\]]
-os.execute([[md "]] .. eliteoutdir .. [["]])
-
 datadir = eliteoutdir .. [[Data\]]
-os.execute([[md "]] .. datadir .. [["]])
-
 logfiledir = eliteoutdir .. [[Logs\]]
-os.execute([[md "]] .. logfiledir .. [["]])
+fnMarketDir = eliteoutdir .. [[MarketDump\]]
+
+if (isDir(eliteoutdir) == false) then
+  os.execute([[md "]] .. eliteoutdir .. [["]])
+  os.execute([[md "]] .. datadir .. [["]])
+  os.execute([[md "]] .. logfiledir .. [["]])
+  os.execute([[md "]] .. fnMarketDir .. [["]])
+
+elseif (isDir(datadir) == false or isDir(logfiledir) == false or isDir(fnMarketDir) == false) then
+  os.execute([[md "]] .. datadir .. [["]])
+  os.execute([[md "]] .. logfiledir .. [["]])
+  os.execute([[md "]] .. fnMarketDir .. [["]])
+end
 
 logfilename = logfiledir .. 'debugLog.' .. os.date('%y%m%d%H%M') .. '.log'
 udpfilename = logfiledir .. 'udpLog.' .. os.date('%y%m%d%H%M') .. '.log'
@@ -139,12 +171,12 @@ function httpGet(url, file)
   if (response:len() == 0) then
     result = safe.execution(readFile, tmpfile)
     safe.execution(writeFile, file, "w+", result)
-    if (exist(tmpfile)) then
+    if (isFile(tmpfile)) then
       os.remove(tmpfile)
     end
 
   else
-    if (exist(file)) then
+    if (isFile(file)) then
       result = safe.execution(readFile, file)
       printDual(string.format("Couldn't update data! Using saved data!"))
 
@@ -174,17 +206,18 @@ end
 -- Update related
 ----------------------------------------------------------------------------------------------
 gitApiUrl = [[https://api.github.com/repos/Randshot/Elite-Dangerous-Dynamic-Lua-Script/releases/latest]]
-gitReleasesUrl = [[https://github.com/Randshot/Elite-Dangerous-Dynamic-Lua-Script/releases/latest/]]
+gitReleasesUrl = [[https://github.com/Randshot/Elite-Dangerous-Dynamic-Lua-Script/releases/download/]]
 
 function getLatestAssetLink(api, rep)
   local apiReturn = safe.execution(apiGet, api)
   local latestTag = string.match(apiReturn, [[v%d.%d.%d+]])
 
-  return string.format("%s%s", rep, latestTag)
+  return string.format("%s%s/", rep, latestTag)
 end
 
 function updateData()
-  safe.execution(httpGet, dataUrl, dataname)
+  local dataUrl = getLatestAssetLink(gitApiUrl, gitReleasesUrl) .. "data.zip"
+  safe.execution(httpGet, dataUrl, "data.lua")
 end
 
 ----------------------------------------------------------------------------------------------
@@ -192,13 +225,13 @@ end
 ----------------------------------------------------------------------------------------------
 function loadData(dataname)
   local file = datadir .. "data.lua"
-  if (exist(file)) then
+  if (isFile(file)) then
     local dataTable = safe.execution(loadstring, safe.execution(readFile, file))()
     local data = dataTable[dataname]
     return data
   else
-    local dataUrl = getLatestAssetLink(gitApiUrl, gitReleasesUrl) .. dataname
-    local dataTable = safe.execution(loadstring, safe.execution(httpGet, dataUrl, dataname))()
+    local dataUrl = getLatestAssetLink(gitApiUrl, gitReleasesUrl) .. "data.zip"
+    local dataTable = safe.execution(loadstring, safe.execution(httpGet, dataUrl, "data.lua"))()
     local data = dataTable[dataname]
     return data
   end
