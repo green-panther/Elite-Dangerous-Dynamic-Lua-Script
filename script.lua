@@ -131,9 +131,9 @@ function httpGet(url, file)
   file = type(file) == 'string' and datadir .. file or tmpfile
   local result = string.format("printDual('ERROR: %s --> %s')", url, file)
 
-  local cmd = string.format([[powershell -command "& { (New-Object Net.WebClient).DownloadFile('%s', '%s') }"]], url, tmpfile)
+  local cmd = string.format([[powershell -windowstyle hidden -command "& { (New-Object Net.WebClient).DownloadFile('%s', '%s') }"]], url, tmpfile)
   cmd = assert(io.popen(cmd, 'r'))
-  local response = cmd:read('*all')
+  local response = cmd:read('*a')
   cmd:close()
 
   if (response:len() == 0) then
@@ -142,15 +142,14 @@ function httpGet(url, file)
     if (exist(tmpfile)) then
       os.remove(tmpfile)
     end
-    printDual(string.format("Updated file: %s", file))
 
   else
     if (exist(file)) then
       result = safe.execution(readFile, file)
-      printDual(string.format("Couldn't update file! Using saved one!"))
+      printDual(string.format("Couldn't update data! Using saved data!"))
 
     else
-      printDual(string.format("Couldn't update file! No saved file found!"))
+      printDual(string.format("Couldn't update data! No saved data found!"))
     end
   end
 
@@ -158,29 +157,49 @@ function httpGet(url, file)
 end
 
 ----------------------------------------------------------------------------------------------
+-- Makeshift API caller
+----------------------------------------------------------------------------------------------
+function apiGet(api)
+  assert(type(api) == 'string', 'has to be an url')
+
+  local cmd = string.format([[powershell -windowstyle hidden -command "invoke-RestMethod -Uri '%s' -Method Get"]], api)
+  cmd = assert(io.popen(cmd, 'r'))
+  local response = cmd:read('*a')
+  cmd:close()
+
+  return response
+end
+
+----------------------------------------------------------------------------------------------
 -- Update related
 ----------------------------------------------------------------------------------------------
-gitDataUrl = [[https://raw.githubusercontent.com/Randshot/Elite-Dangerous-Dynamic-Lua-Script/master/Data/]]
+gitApiUrl = [[https://api.github.com/repos/Randshot/Elite-Dangerous-Dynamic-Lua-Script/releases/latest]]
+gitReleasesUrl = [[https://github.com/Randshot/Elite-Dangerous-Dynamic-Lua-Script/releases/latest/]]
+
+function getLatestAssetLink(api, rep)
+  local apiReturn = safe.execution(apiGet, api)
+  local latestTag = string.match(apiReturn, [[v%d.%d.%d+]])
+
+  return string.format("%s%s", rep, latestTag)
+end
 
 function updateData()
-  safe.execution(httpGet, gitDataUrl .. "version.data", "version.data")
-  safe.execution(httpGet, gitDataUrl .. "ctable.data", "ctable.data")
-  safe.execution(httpGet, gitDataUrl .. "main.data", "main.data")
-  safe.execution(httpGet, gitDataUrl .. "breakpoint.data", "breakpoint.data")
-  safe.execution(httpGet, gitDataUrl .. "functions.data", "functions.data")
-  safe.execution(httpGet, gitDataUrl .. "keys.data", "keys.data")
+  safe.execution(httpGet, dataUrl, dataname)
 end
 
 ----------------------------------------------------------------------------------------------
 -- Load data function
 ----------------------------------------------------------------------------------------------
 function loadData(dataname)
-  local file = datadir .. dataname
+  local file = datadir .. "data.lua"
   if (exist(file)) then
-    local data = safe.execution(loadstring, safe.execution(readFile, file))()
+    local dataTable = safe.execution(loadstring, safe.execution(readFile, file))()
+    local data = dataTable[dataname]
     return data
   else
-    local data = safe.execution(loadstring, safe.execution(httpGet, gitDataUrl .. dataname, dataname))()
+    local dataUrl = getLatestAssetLink(gitApiUrl, gitReleasesUrl) .. dataname
+    local dataTable = safe.execution(loadstring, safe.execution(httpGet, dataUrl, dataname))()
+    local data = dataTable[dataname]
     return data
   end
 end
@@ -188,7 +207,7 @@ end
 ----------------------------------------------------------------------------------------------
 -- Loading Functions
 ----------------------------------------------------------------------------------------------
-functionsData = loadData("functions.data")
+functionsData = loadData("functions")
 functionsData()
 
 ----------------------------------------------------------------------------------------------
@@ -197,17 +216,17 @@ functionsData()
 script = orderedTable { __name = "script" }
 patches = orderedTable { __name = "patches" }
 ctable = orderedTable { __name = "Cheat Table" }
-ctableData = loadData("ctable.data")
+ctableData = loadData("ctable")
 ctableData()
 keyIDs = {}
-keysData = loadData("keys.data")
+keysData = loadData("keys")
 keysData()
 init = false
 
 ----------------------------------------------------------------------------------------------
 -- Version output
 ----------------------------------------------------------------------------------------------
-versionData = loadData("version.data")
+versionData = loadData("version")
 versionData()
 printDual("Game Version: " .. gameVersion)
 printDual("Lua Script Version: " .. scriptVersion .. "\n")
@@ -264,12 +283,12 @@ end
 ----------------------------------------------------------------------------------------------
 -- Load Main Script
 ----------------------------------------------------------------------------------------------
-script.main = loadData("main.data")
+script.main = loadData("main")
 
 ----------------------------------------------------------------------------------------------
 -- Load onBreakpoint function
 ----------------------------------------------------------------------------------------------
-script.onBreakpoint = loadData("breakpoint.data")
+script.onBreakpoint = loadData("breakpoint")
 
 ----------------------------------------------------------------------------------------------
 -- Auto attach to Elite: Dangerous
