@@ -278,9 +278,16 @@ if (settings.Value['version'] ~= scriptVersion) then
   settings.Value['version'] = scriptVersion
 end
 
-function printChangelog()
-  for line in string.gmatch(changelogData(), "%C+") do
-    printDual(line)
+function printChangelog(version)
+  if (version == nil) then
+    for line in string.gmatch(changelogData(), "%C+") do
+      printDual(line)
+    end
+
+  else
+    for line in string.gmatch(changelogData(version), "%C+") do
+      printDual(line)
+    end
   end
 end
 
