@@ -262,7 +262,21 @@ init = false
 versionData = loadData("version")
 versionData()
 printDual("Game Version: " .. gameVersion)
-printDual("Lua Script Version: " .. scriptVersion .. "\n")
+printDual("Lua Script Version: " .. scriptVersion)
+
+----------------------------------------------------------------------------------------------
+-- If new version, output Changelog
+-- changelogData() for entire changelog
+----------------------------------------------------------------------------------------------
+if (settings.Value['version'] ~= scriptVersion) then
+  changelogData = loadData("changelog")
+  printDual("")
+  for line in string.gmatch(changelogData(scriptVersion), "%C+") do
+    printDual(line)
+  end
+
+  settings.Value['version'] = scriptVersion
+end
 
 ----------------------------------------------------------------------------------------------
 -- CE Version check
@@ -309,6 +323,7 @@ function deleteSettings()
     settings.Value[k] = nil
     ctable[k].enableOnStart = 0
   end
+  settings.Value['version'] = 0
   settings.Value['created'] = 0
   printDual("Deleted Settings!")
 end
