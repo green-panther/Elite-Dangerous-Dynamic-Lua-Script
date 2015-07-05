@@ -278,6 +278,12 @@ if (settings.Value['version'] ~= scriptVersion) then
   settings.Value['version'] = scriptVersion
 end
 
+function printChangelog()
+  for line in string.gmatch(changelogData(), "%C+") do
+    printDual(line)
+  end
+end
+
 ----------------------------------------------------------------------------------------------
 -- CE Version check
 -- Checks for the right version of CE
