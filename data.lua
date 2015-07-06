@@ -1,11 +1,15 @@
 return {
 version = function()
   gameVersion = "v1.3.06"
-  scriptVersion = "v2.0.04"
+  scriptVersion = "v2.0.05"
 end,
 
 changelog = function(version)
   local changeTable = orderedTable { __name = "Changelog" }
+  changeTable['v2.0.05'] = [[
+    List of changes for v2.0.05:
+      Changed: Corrected UPD typo
+  ]]
   changeTable['v2.0.04'] = [[
     List of changes for v2.0.04:
       Added: Interdiction Bypass
@@ -99,7 +103,7 @@ ctable = function()
   ctable.noFuel = { descr = "No Fuel Usage", parent = "fuel", hotkey = hNoFuel, safe = false }
   ctable.amFrezSs = { descr = "Freeze Ammo", patch = { "2B DE 85 C0 74 07", "90 90" }, hotkey = hAmmo, safe = false }
   ctable.noWarning = { descr = "No Warning", hotkey = hNoWarning, on = false }
-  ctable.udpStream = { descr = "UPD Stream Logger", sig = "83 EC 20 53 8B D9 55 8B 53 54", force = true }
+  ctable.udpStream = { descr = "UDP Stream Logger", sig = "83 EC 20 53 8B D9 55 8B 53 54", force = true }
   ctable.udpBytes = { descr = "Bytes/s", customAddr = "udpBs", parent = "udpStream", hotkey = nil }
   ctable.udpPackets = { descr = "Packets/s", customAddr = "udpPs", parent = "udpStream", hotkey = nil }
   ctable.udpTBytes = { descr = "Total Bytes", customAddr = "udpTBs", parent = "udpStream", hotkey = nil }
